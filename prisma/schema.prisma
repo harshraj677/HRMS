@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Employee {
+  id            Int            @id @default(autoincrement())
+  fullName      String
+  email         String         @unique
+  phone         String?
+  department    String?
+  position      String?
+  role          String         @default("employee")
+  passwordHash  String
+  leaveBalance  Int            @default(18)
+  createdAt     DateTime       @default(now())
+
+  attendance    Attendance[]
+  leaveRequests LeaveRequest[]
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  date       DateTime @db.Date
+  checkIn    DateTime?
+  checkOut   DateTime?
+  hours      Float?
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  days       Int      @default(1)
+  reason     String   @db.Text
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  text       String
+  createdAt  DateTime @default(now())
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String
+}
