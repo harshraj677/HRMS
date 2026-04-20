@@ -119,10 +119,10 @@ export async function POST(req: NextRequest) {
 
     response.headers.set("Set-Cookie", buildAuthCookie(token));
     return response;
-  } catch (err: any) {
+  } catch (err) {
     console.error("[auth/login]", err);
     return NextResponse.json(
-      { error: "An internal error occurred. Please try again.", detail: err?.message ?? String(err) },
+      { error: "An internal error occurred. Please try again." },
       { status: 500 }
     );
   }

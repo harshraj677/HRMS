@@ -19,9 +19,12 @@ async function main() {
   await client.connect();
   console.log("Connected to Supabase.");
 
-  // Accepts a parameterized SQL query + JSON array of params,
-  // runs it with SECURITY DEFINER (postgres owner privileges),
-  // returns {rows, affectedRows, insertId} JSON.
+  // Inline each $N placeholder with a properly typed literal so we never hit
+  // the text→integer implicit cast problem in EXECUTE … USING text[].
+  // - JSON numbers  → inlined without quotes (e.g. 42)
+  // - JSON booleans → inlined as true/false
+  // - JSON null     → inlined as NULL
+  // - JSON strings  → inlined via quote_literal() to prevent injection
   await client.query(`
     CREATE OR REPLACE FUNCTION _run_sql(q text, params jsonb DEFAULT '[]'::jsonb)
     RETURNS jsonb
@@ -32,53 +35,63 @@ async function main() {
     DECLARE
       v_rows      jsonb;
       v_rowcount  int := 0;
-      p1  text := params->>0;
-      p2  text := params->>1;
-      p3  text := params->>2;
-      p4  text := params->>3;
-      p5  text := params->>4;
-      p6  text := params->>5;
-      p7  text := params->>6;
-      p8  text := params->>7;
-      p9  text := params->>8;
-      p10 text := params->>9;
+      i           int;
+      val         jsonb;
+      typed_val   text;
+      final_q     text;
     BEGIN
-      IF q ~* '^\s*(INSERT|UPDATE|DELETE)' THEN
-        IF q ~* 'RETURNING' THEN
-          EXECUTE 'SELECT COALESCE(jsonb_agg(r),''[]''::jsonb) FROM (' || q || ') r'
-            USING p1,p2,p3,p4,p5,p6,p7,p8,p9,p10
+      -- Replace each $N with its properly-typed literal value
+      final_q := q;
+      FOR i IN 1..COALESCE(jsonb_array_length(params), 0) LOOP
+        val := params->(i-1);
+        IF val IS NULL OR val = 'null'::jsonb THEN
+          typed_val := 'NULL';
+        ELSIF jsonb_typeof(val) = 'number' THEN
+          typed_val := val::text;
+        ELSIF jsonb_typeof(val) = 'boolean' THEN
+          typed_val := val::text;
+        ELSE
+          typed_val := quote_literal(val #>> '{}');
+        END IF;
+        final_q := replace(final_q, '$' || i::text, typed_val);
+      END LOOP;
+
+      IF final_q ~* '^\s*(INSERT|UPDATE|DELETE)' THEN
+        IF final_q ~* 'RETURNING' THEN
+          EXECUTE 'SELECT COALESCE(jsonb_agg(r),''[]''::jsonb) FROM (' || final_q || ') r'
             INTO v_rows;
           v_rowcount := jsonb_array_length(v_rows);
         ELSE
-          EXECUTE q USING p1,p2,p3,p4,p5,p6,p7,p8,p9,p10;
+          EXECUTE final_q;
           GET DIAGNOSTICS v_rowcount = ROW_COUNT;
           v_rows := '[]'::jsonb;
         END IF;
+        RETURN jsonb_build_object(
+          'rows',         v_rows,
+          'affectedRows', v_rowcount,
+          'insertId',     COALESCE((v_rows->0->>'id')::int, 0)
+        );
       ELSE
-        EXECUTE 'SELECT COALESCE(jsonb_agg(r),''[]''::jsonb) FROM (' || q || ') r'
-          USING p1,p2,p3,p4,p5,p6,p7,p8,p9,p10
+        EXECUTE 'SELECT COALESCE(jsonb_agg(r),''[]''::jsonb) FROM (' || final_q || ') r'
           INTO v_rows;
-        v_rowcount := jsonb_array_length(v_rows);
+        RETURN jsonb_build_object(
+          'rows',         COALESCE(v_rows, '[]'::jsonb),
+          'affectedRows', jsonb_array_length(COALESCE(v_rows, '[]'::jsonb)),
+          'insertId',     0
+        );
       END IF;
-
-      RETURN jsonb_build_object(
-        'rows',         v_rows,
-        'affectedRows', v_rowcount,
-        'insertId',     COALESCE((v_rows->0->>'id')::int, 0)
-      );
     END;
     $$;
   `);
-  console.log("Created _run_sql function.");
+  console.log("Created _run_sql function (v2 — inline typed literals).");
 
-  // Grant anon + authenticated roles so it's callable via REST API
   await client.query(`
     GRANT EXECUTE ON FUNCTION _run_sql(text, jsonb) TO anon, authenticated, service_role;
   `);
   console.log("Granted EXECUTE to anon / authenticated / service_role.");
 
   await client.end();
-  console.log("Done! Deploy with VERCEL env var set and login should work.");
+  console.log("Done! Deploy and login should work.");
 }
 
 main().catch((err) => {
