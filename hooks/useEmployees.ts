@@ -62,7 +62,6 @@ export function useCreateEmployee() {
     mutationFn: async (data: {
       fullName: string;
       email: string;
-      password: string;
       phone?: string;
       department?: string;
       position?: string;
@@ -77,9 +76,9 @@ export function useCreateEmployee() {
       if (!res.ok) throw new Error(json.error || "Failed to create employee");
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success("Employee created successfully!");
+      toast.success(data.message || "Employee created successfully!");
     },
     onError: (err: Error) => {
       toast.error(err.message);

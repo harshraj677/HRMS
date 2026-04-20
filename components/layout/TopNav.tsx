@@ -33,10 +33,11 @@ import { useAuth } from "@/hooks/useAuth";
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard": { title: "Dashboard", description: "Overview & insights" },
   "/dashboard/employees": { title: "Employees", description: "Manage your team members" },
-  "/dashboard/profile": { title: "My Profile", description: "Your personal details & history" },
+  "/dashboard/profile": { title: "My Profile", description: "Your personal details" },
   "/dashboard/attendance": { title: "Attendance", description: "Track and manage attendance" },
+  "/dashboard/attendance-map": { title: "Attendance Map", description: "Live employee check-in locations" },
   "/dashboard/leave": { title: "Leave Requests", description: "Review and manage leave applications" },
-  "/dashboard/analytics": { title: "Analytics", description: "Performance insights & reports" },
+  "/dashboard/analytics": { title: "Analytics", description: "Attendance & performance insights" },
   "/dashboard/settings": { title: "Settings", description: "Configure your preferences" },
 };
 

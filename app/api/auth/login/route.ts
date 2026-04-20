@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { db } from "@/lib/db";
 import { signToken, buildAuthCookie } from "@/lib/auth";
-import { RowDataPacket } from "mysql2";
 
-interface EmployeeRow extends RowDataPacket {
+interface EmployeeRow {
   id: number;
   fullName: string;
   email: string;
@@ -12,17 +11,20 @@ interface EmployeeRow extends RowDataPacket {
   passwordHash: string;
   department: string | null;
   position: string | null;
+  mustChangePassword: boolean;
+}
+
+function getClientIP(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
-
-    // [DEBUG] Log the incoming request payload (remove in production)
-    console.log("[auth/login] Request payload:", {
-      email: body?.email,
-      passwordProvided: !!body?.password,
-    });
 
     if (!body || typeof body.email !== "string" || typeof body.password !== "string") {
       return NextResponse.json(
@@ -33,6 +35,8 @@ export async function POST(req: NextRequest) {
 
     const email = body.email.trim().toLowerCase();
     const password = body.password;
+    const ipAddress = getClientIP(req);
+    const userAgent = req.headers.get("user-agent") || "unknown";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -41,22 +45,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // [DEBUG] Log the normalised email being looked up
-    console.log("[auth/login] Looking up employee:", email);
-
     // Query employee from DB
     const [rows] = await db.execute<EmployeeRow[]>(
-      "SELECT id, fullName, email, role, passwordHash, department, position FROM Employee WHERE email = ? LIMIT 1",
+      "SELECT id, fullName, email, role, passwordHash, department, position, mustChangePassword FROM Employee WHERE email = ? LIMIT 1",
       [email]
     );
 
     const employee = rows[0];
 
-    // [DEBUG] Log whether the employee was found
-    console.log("[auth/login] Employee found:", employee ? `YES (id=${employee.id}, role=${employee.role})` : "NO");
-
     if (!employee) {
-      // Use a constant-time response to prevent user enumeration
       await bcrypt.hash("dummy", 10);
       return NextResponse.json(
         { error: "Invalid email or password." },
@@ -66,15 +63,38 @@ export async function POST(req: NextRequest) {
 
     const passwordMatch = await bcrypt.compare(password, employee.passwordHash);
 
-    // [DEBUG] Log bcrypt comparison result
-    console.log("[auth/login] Password match:", passwordMatch);
-
     if (!passwordMatch) {
+      // Log failed login attempt
+      await db.execute(
+        "INSERT INTO LoginHistory (employeeId, ipAddress, device, browser, success) VALUES (?, ?, ?, ?, ?)",
+        [employee.id, ipAddress, userAgent, parseBrowser(userAgent), false]
+      );
+
+      // Check for frequent failed logins (fraud detection)
+      const [failedRows] = await db.execute<{ cnt: number }[]>(
+        "SELECT COUNT(*) as cnt FROM LoginHistory WHERE employeeId = ? AND success = 0 AND loginTime > DATE_SUB(NOW(), INTERVAL 30 MINUTE)",
+        [employee.id]
+      );
+      const failedCount = (failedRows as { cnt: number }[])[0].cnt;
+
+      if (failedCount >= 5) {
+        await db.execute(
+          "INSERT INTO SuspiciousLog (employeeId, type, description, ipAddress) VALUES (?, ?, ?, ?)",
+          [employee.id, "frequent_failed_login", `${failedCount} failed login attempts in the last 30 minutes from IP: ${ipAddress}`, ipAddress]
+        );
+      }
+
       return NextResponse.json(
         { error: "Invalid email or password." },
         { status: 401 }
       );
     }
+
+    // Log successful login
+    await db.execute(
+      "INSERT INTO LoginHistory (employeeId, ipAddress, device, browser, success) VALUES (?, ?, ?, ?, ?)",
+      [employee.id, ipAddress, userAgent, parseBrowser(userAgent), true]
+    );
 
     const token = signToken({
       id: employee.id,
@@ -85,9 +105,6 @@ export async function POST(req: NextRequest) {
       position: employee.position ?? undefined,
     });
 
-    // [DEBUG] Log successful JWT creation
-    console.log("[auth/login] JWT created for employee id:", employee.id);
-
     const response = NextResponse.json({
       user: {
         id: employee.id,
@@ -96,8 +113,8 @@ export async function POST(req: NextRequest) {
         role: employee.role,
         department: employee.department,
         position: employee.position,
+        mustChangePassword: !!employee.mustChangePassword,
       },
-      role: employee.role,
     });
 
     response.headers.set("Set-Cookie", buildAuthCookie(token));
@@ -109,4 +126,13 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function parseBrowser(userAgent: string): string {
+  if (userAgent.includes("Firefox")) return "Firefox";
+  if (userAgent.includes("Edg")) return "Edge";
+  if (userAgent.includes("Chrome")) return "Chrome";
+  if (userAgent.includes("Safari")) return "Safari";
+  if (userAgent.includes("Opera") || userAgent.includes("OPR")) return "Opera";
+  return "Other";
 }

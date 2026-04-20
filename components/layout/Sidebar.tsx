@@ -3,14 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
   CalendarCheck,
-  CalendarDays,
   BarChart3,
-  MessageSquare,
   Settings,
   LogOut,
   ChevronLeft,
@@ -19,10 +16,11 @@ import {
   ClipboardList,
   Sparkles,
   X,
+  MapPin,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -41,6 +39,7 @@ function getNavItems(role: string) {
         items: [
           { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
           { label: "Leave Requests", href: "/dashboard/leave", icon: ClipboardList },
+          { label: "Attendance Map", href: "/dashboard/attendance-map", icon: MapPin },
         ],
       },
       {
@@ -58,26 +57,25 @@ function getNavItems(role: string) {
     ];
   }
 
-  // Employee nav — personal data only
   return [
     {
       group: "Main",
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "My Profile", href: "/dashboard/profile", icon: UserCircle },
       ],
     },
     {
       group: "My Work",
       items: [
         { label: "My Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-        { label: "My Leave", href: "/dashboard/leave", icon: ClipboardList },
+        { label: "My Leave Requests", href: "/dashboard/leave", icon: ClipboardList },
+        { label: "Apply Leave", href: "/dashboard/leave?apply=1", icon: FileText },
       ],
     },
     {
       group: "Account",
       items: [
-        { label: "Settings", href: "/dashboard/settings", icon: Settings },
+        { label: "Profile", href: "/dashboard/profile", icon: UserCircle },
       ],
     },
   ];
@@ -111,26 +109,14 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <p className="font-bold text-white text-sm leading-tight whitespace-nowrap">Anvesana</p>
-              <p className="text-[10px] text-slate-400 whitespace-nowrap">Innovation & Entrepreneurial</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {/* Mobile close */}
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <p className="font-bold text-white text-sm leading-tight whitespace-nowrap">Anvesana</p>
+            <p className="text-[10px] text-slate-400 whitespace-nowrap">Innovation & Entrepreneurial</p>
+          </div>
+        )}
         {onMobileClose && (
-          <button
-            onClick={onMobileClose}
-            className="ml-auto text-slate-400 hover:text-white lg:hidden"
-          >
+          <button onClick={onMobileClose} className="ml-auto text-slate-400 hover:text-white lg:hidden">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -155,43 +141,32 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   <Tooltip key={item.href}>
                     <TooltipTrigger asChild>
                       <Link href={item.href} onClick={onMobileClose}>
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className={cn(
-                            "flex items-center justify-center w-10 h-10 mx-auto rounded-xl mb-1 transition-all duration-200",
-                            isActive
-                              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                              : "text-slate-400 hover:bg-white/10 hover:text-white"
-                          )}
-                        >
+                        <div className={cn(
+                          "flex items-center justify-center w-10 h-10 mx-auto rounded-xl mb-1 transition-colors duration-150",
+                          isActive
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                            : "text-slate-400 hover:bg-white/10 hover:text-white"
+                        )}>
                           <Icon className="w-5 h-5" />
-                        </motion.div>
+                        </div>
                       </Link>
                     </TooltipTrigger>
                     <TooltipContent side="right">{item.label}</TooltipContent>
                   </Tooltip>
                 ) : (
                   <Link key={item.href} href={item.href} onClick={onMobileClose}>
-                    <motion.div
-                      whileHover={{ x: 2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all duration-200 cursor-pointer",
-                        isActive
-                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                          : "text-slate-400 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Icon className="w-4.5 h-4.5 shrink-0 w-[18px] h-[18px]" />
+                    <div className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
+                      isActive
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                        : "text-slate-400 hover:bg-white/10 hover:text-white"
+                    )}>
+                      <Icon className="w-[18px] h-[18px] shrink-0" />
                       <span>{item.label}</span>
                       {isActive && (
-                        <motion.div
-                          layoutId="active-dot"
-                          className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60"
-                        />
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />
                       )}
-                    </motion.div>
+                    </div>
                   </Link>
                 );
               })}
@@ -201,10 +176,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       </nav>
 
       {/* User Profile */}
-      <div className={cn(
-        "border-t border-white/10 p-3",
-        collapsed ? "flex flex-col items-center gap-2" : ""
-      )}>
+      <div className={cn("border-t border-white/10 p-3", collapsed ? "flex flex-col items-center gap-2" : "")}>
         <div className={cn(
           "flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer group",
           collapsed ? "justify-center" : ""
@@ -229,7 +201,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           )}
         </div>
 
-        {/* Collapse Toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
@@ -245,39 +216,28 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 64 : 240 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="hidden lg:flex flex-col fixed left-0 top-0 h-full bg-slate-900 border-r border-white/5 z-30 overflow-hidden"
+      {/* Desktop Sidebar — CSS transition for collapse */}
+      <aside
+        className={cn(
+          "hidden lg:flex flex-col fixed left-0 top-0 h-full bg-slate-900 border-r border-white/5 z-30 overflow-hidden transition-[width] duration-200 ease-in-out",
+          collapsed ? "w-16" : "w-60"
+        )}
       >
         {sidebarContent}
-      </motion.aside>
+      </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={onMobileClose}
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed left-0 top-0 h-full w-[260px] bg-slate-900 border-r border-white/5 z-50 flex flex-col lg:hidden"
-            >
-              {sidebarContent}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Mobile Sidebar — CSS transition */}
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-150"
+            onClick={onMobileClose}
+          />
+          <aside className="fixed left-0 top-0 h-full w-[260px] bg-slate-900 border-r border-white/5 z-50 flex flex-col lg:hidden animate-in slide-in-from-left duration-200">
+            {sidebarContent}
+          </aside>
+        </>
+      )}
     </>
   );
 }

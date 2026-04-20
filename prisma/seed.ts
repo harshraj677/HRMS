@@ -10,10 +10,11 @@ const users = [
     fullName: "Harish Gadagin",
     email: "harish@anvesana.org",
     department: "Management",
-    position: "Admin",
+    position: "COO",
     role: "admin",
     password: "Admin@123",
     leaveBalance: 18,
+    phone: "+91-9876543210",
   },
   // ── Employees ──────────────────────────────────────────────────────────────
   {
@@ -24,6 +25,7 @@ const users = [
     role: "employee",
     password: "Employee@123",
     leaveBalance: 18,
+    phone: "+91-9876543211",
   },
   {
     fullName: "Pavan M Naik",
@@ -33,6 +35,7 @@ const users = [
     role: "employee",
     password: "Employee@123",
     leaveBalance: 18,
+    phone: "+91-9876543212",
   },
   {
     fullName: "Vishwa H M",
@@ -42,15 +45,17 @@ const users = [
     role: "employee",
     password: "Employee@123",
     leaveBalance: 18,
+    phone: "+91-9876543213",
   },
   {
-    fullName: "Sarvesh Kumar",
-    email: "sarvesh@anvesana.org",
-    department: "Technology",
-    position: "Software Developer",
-    role: "employee",
-    password: "Employee@123",
+    fullName: "Anu",
+    email: "anu@anvesana.org",
+    department: "Management",
+    position: "Manager",
+    role: "admin",
+    password: "Admin@123",
     leaveBalance: 18,
+    phone: "+91-9876543215",
   },
 ];
 
@@ -60,14 +65,22 @@ async function main() {
     throw new Error("DATABASE_URL environment variable is not set.");
   }
 
-  const connection = await mysql.createConnection(databaseUrl);
-  console.log("🌱  Seeding Anvesana Employee Management database...\n");
+  const url = new URL(databaseUrl);
+  const connection = await mysql.createConnection({
+    host: url.hostname,
+    port: parseInt(url.port) || 3306,
+    user: url.username,
+    password: decodeURIComponent(url.password),
+    database: url.pathname.slice(1),
+  });
+  console.log("🌱  Seeding Anvesana Workforce Management database...\n");
 
   try {
     // Clear existing data in correct order (foreign keys)
+    await connection.execute("DELETE FROM SuspiciousLog");
+    await connection.execute("DELETE FROM LoginHistory");
     await connection.execute("DELETE FROM LeaveRequest");
     await connection.execute("DELETE FROM Attendance");
-    await connection.execute("DELETE FROM Message");
     await connection.execute("DELETE FROM Employee");
     console.log("🗑️   Cleared existing data.\n");
 
@@ -75,14 +88,17 @@ async function main() {
       const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
 
       await connection.execute(
-        "INSERT INTO Employee (fullName, email, department, position, role, passwordHash, leaveBalance) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [user.fullName, user.email, user.department, user.position, user.role, passwordHash, user.leaveBalance]
+        `INSERT INTO Employee (fullName, email, department, position, role, passwordHash, leaveBalance, phone, mustChangePassword, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user.fullName, user.email, user.department, user.position, user.role, passwordHash, user.leaveBalance, user.phone, false, "active"]
       );
 
       console.log(`✅  Created  – ${user.fullName} <${user.email}> [${user.role}] (${user.position})`);
     }
 
-    console.log("\n🎉  Seeding complete. 4 users created.");
+    console.log("\n🎉  Seeding complete. 5 users created.");
+    console.log("   Admin: harish@anvesana.org / Admin@123");
+    console.log("   Employees: bharath/pavan/vishwa/sarvesh@anvesana.org / Employee@123");
   } finally {
     await connection.end();
   }

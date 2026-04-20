@@ -1,88 +1,80 @@
 // ─── User & Authentication ──────────────────────────────────────────────────
 
-export type UserRole = "admin" | "hr" | "employee";
+export type UserRole = "admin" | "employee";
 
 export interface User {
-  id: string;
-  name: string;
+  id: number;
+  fullName: string;
   email: string;
   role: UserRole;
-  avatar?: string;
-  department: string;
-  position: string;
-  employeeId: string;
-  joinDate: string;
-  phone: string;
-  status: "active" | "inactive";
+  department?: string;
+  position?: string;
+  phone?: string;
+  leaveBalance: number;
+  mustChangePassword: boolean;
+  status: string;
+  createdAt: string;
 }
 
 // ─── Employee ────────────────────────────────────────────────────────────────
 
 export interface Employee {
-  id: string;
-  employeeId: string;
-  name: string;
+  id: number;
+  fullName: string;
   email: string;
-  phone: string;
-  department: string;
-  position: string;
-  role: UserRole;
-  joinDate: string;
-  status: "active" | "inactive" | "on-leave";
-  avatar?: string;
-  manager?: string;
-  location: string;
+  phone: string | null;
+  department: string | null;
+  position: string | null;
+  role: string;
+  leaveBalance: number;
+  status: string;
+  createdAt: string;
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "on-leave";
+export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "on-leave" | "not-checked-in";
 
 export interface AttendanceRecord {
-  id: string;
-  employeeId: string;
+  id: number;
+  employeeId: number;
   date: string;
-  checkIn?: string;
-  checkOut?: string;
-  status: AttendanceStatus;
-  hoursWorked?: number;
-  notes?: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  hours: number | null;
+  status: string;
+  latitude: number | null;
+  longitude: number | null;
+  ipAddress: string | null;
+  device: string | null;
+  distanceFromOffice: number | null;
+  fullName?: string;
 }
 
 export interface TodayAttendance {
-  checkIn?: string;
-  checkOut?: string;
-  status: AttendanceStatus | "not-checked-in";
-  hoursWorked?: number;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  hours: number | null;
 }
 
 // ─── Leave ───────────────────────────────────────────────────────────────────
 
-export type LeaveType = "annual" | "sick" | "casual" | "maternity" | "paternity" | "unpaid";
-export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type LeaveStatus = "pending" | "approved" | "rejected";
 
 export interface LeaveRequest {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  leaveType: LeaveType;
+  id: number;
+  employeeId: number;
   startDate: string;
   endDate: string;
   days: number;
   reason: string;
   status: LeaveStatus;
-  appliedOn: string;
-  approvedBy?: string;
-  approvedOn?: string;
-  rejectionReason?: string;
-}
-
-export interface LeaveBalance {
-  annual: { total: number; used: number; remaining: number };
-  sick: { total: number; used: number; remaining: number };
-  casual: { total: number; used: number; remaining: number };
-  maternity?: { total: number; used: number; remaining: number };
-  paternity?: { total: number; used: number; remaining: number };
+  approvedBy: number | null;
+  createdAt: string;
+  fullName?: string;
+  department?: string | null;
+  leaveBalance?: number;
 }
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
@@ -92,13 +84,8 @@ export interface DashboardStats {
   presentToday: number;
   onLeave: number;
   pendingLeaveRequests: number;
+  lateToday: number;
   percentPresent: number;
-  percentChange: {
-    employees: number;
-    present: number;
-    leave: number;
-    pending: number;
-  };
 }
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
@@ -110,42 +97,48 @@ export interface AttendanceTrendData {
   late: number;
 }
 
-export interface LeaveDistributionData {
-  name: string;
-  value: number;
-  color: string;
+export interface DepartmentAttendanceData {
+  department: string;
+  present: number;
+  absent: number;
+  late: number;
 }
 
-// ─── Messages ────────────────────────────────────────────────────────────────
+// ─── Login History ────────────────────────────────────────────────────────────
 
-export type MessageStatus = "unread" | "read" | "sent";
-
-export interface Message {
-  id: string;
-  from: string;
-  fromId: string;
-  to: string;
-  toId: string;
-  subject: string;
-  body: string;
-  timestamp: string;
-  status: MessageStatus;
-  avatar?: string;
+export interface LoginHistoryEntry {
+  id: number;
+  employeeId: number;
+  ipAddress: string | null;
+  device: string | null;
+  browser: string | null;
+  loginTime: string;
+  success: boolean;
+  fullName?: string;
 }
 
-// ─── Calendar Event ───────────────────────────────────────────────────────────
+// ─── Suspicious Log ──────────────────────────────────────────────────────────
 
-export type CalendarEventType = "leave" | "holiday" | "meeting" | "event";
+export interface SuspiciousLogEntry {
+  id: number;
+  employeeId: number;
+  type: string;
+  description: string;
+  ipAddress: string | null;
+  createdAt: string;
+  fullName?: string;
+}
 
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string;
-  endDate?: string;
-  type: CalendarEventType;
-  employeeId?: string;
-  employeeName?: string;
-  color: string;
+// ─── Attendance Map Marker ────────────────────────────────────────────────────
+
+export interface AttendanceMapMarker {
+  id: number;
+  employeeId: number;
+  fullName: string;
+  latitude: number;
+  longitude: number;
+  checkIn: string;
+  distanceFromOffice: number;
 }
 
 // ─── API Response ─────────────────────────────────────────────────────────────
@@ -154,12 +147,4 @@ export interface ApiResponse<T> {
   data: T;
   message: string;
   success: boolean;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }

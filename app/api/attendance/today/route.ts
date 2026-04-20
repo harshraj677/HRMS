@@ -13,19 +13,21 @@ export async function GET(req: NextRequest) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const [rows] = await db.execute<RowDataPacket[]>(
-    "SELECT id, checkIn, checkOut, hours FROM Attendance WHERE employeeId = ? AND date = ?",
+    "SELECT id, checkIn, checkOut, hours, status, latitude, longitude, distanceFromOffice FROM Attendance WHERE employeeId = ? AND date = ?",
     [payload.id, todayStr]
   );
 
   const record = (rows as RowDataPacket[])[0];
 
   if (!record) {
-    return NextResponse.json({ checkIn: null, checkOut: null, hours: null, status: "not-checked-in" });
+    return NextResponse.json({ checkIn: null, checkOut: null, hours: null, status: "not-checked-in", distanceFromOffice: null });
   }
 
-  let status = "not-checked-in";
-  if (record.checkIn && !record.checkOut) status = "present";
-  else if (record.checkIn && record.checkOut) status = "completed";
+  let currentStatus = record.status || "not-checked-in";
+  if (!record.status) {
+    if (record.checkIn && !record.checkOut) currentStatus = "present";
+    else if (record.checkIn && record.checkOut) currentStatus = "completed";
+  }
 
   // Compute live hours if still checked in
   let hours = record.hours;
@@ -38,6 +40,7 @@ export async function GET(req: NextRequest) {
     checkIn: record.checkIn,
     checkOut: record.checkOut,
     hours,
-    status,
+    status: currentStatus,
+    distanceFromOffice: record.distanceFromOffice,
   });
 }

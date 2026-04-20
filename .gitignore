@@ -1,12 +1,30 @@
+# Dependencies
 node_modules
-# Keep environment variables out of version control
-.env
 
-/lib/generated/prisma
+# Environment variables — never commit secrets
+.env
+.env.temp
+.env.local
+.env*.local
 
 # Next.js build output
 .next
 out
 
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Prisma generated
+/lib/generated/prisma
+
 # Debug logs
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude memory
+.claude/

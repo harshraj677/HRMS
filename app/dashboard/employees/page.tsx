@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { RoleGuard } from "@/components/RoleGuard";
 import {
   Search,
@@ -54,12 +53,11 @@ import { useEmployees, useCreateEmployee, useDeleteEmployee } from "@/hooks/useE
 import { useAuth } from "@/hooks/useAuth";
 import { cn, getInitials, getDepartmentColor } from "@/lib/utils";
 
-const departments = ["All", "Engineering", "Design", "Marketing", "Operations", "Management"];
+const departments = ["All", "Management", "Programs", "Design", "Incubation", "Content", "Engineering", "Marketing", "Operations"];
 
 const addSchema = z.object({
   fullName: z.string().min(2, "Name is required"),
   email: z.string().email("Valid email required"),
-  password: z.string().min(6, "Min 6 characters"),
   phone: z.string().optional(),
   department: z.string().optional(),
   position: z.string().optional(),
@@ -132,11 +130,7 @@ export default function EmployeesPage() {
                   <Input type="email" {...register("email")} className={errors.email ? "border-red-400" : ""} />
                   {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Password</Label>
-                  <Input type="password" {...register("password")} className={errors.password ? "border-red-400" : ""} />
-                  {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
-                </div>
+                <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2">A temporary password will be auto-generated and emailed to the employee.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Phone</Label>
@@ -217,11 +211,7 @@ export default function EmployeesPage() {
           ))}
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
-        >
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 border-slate-100">
@@ -234,12 +224,9 @@ export default function EmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees?.map((emp, i) => (
-                <motion.tr
+              {employees?.map((emp) => (
+                <TableRow
                   key={emp.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
                   className="border-slate-100 hover:bg-slate-50/60 transition-colors"
                 >
                   <TableCell>
@@ -312,7 +299,7 @@ export default function EmployeesPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
-                </motion.tr>
+                </TableRow>
               ))}
             </TableBody>
           </Table>
@@ -324,7 +311,7 @@ export default function EmployeesPage() {
               <p className="text-xs mt-1">Try adjusting your search or filters</p>
             </div>
           )}
-        </motion.div>
+        </div>
       )}
     </div>
     </RoleGuard>

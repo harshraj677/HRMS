@@ -3,35 +3,47 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
 }
 
 model Employee {
-  id            Int            @id @default(autoincrement())
-  fullName      String
-  email         String         @unique
-  phone         String?
-  department    String?
-  position      String?
-  role          String         @default("employee")
-  passwordHash  String
-  leaveBalance  Int            @default(18)
-  createdAt     DateTime       @default(now())
+  id               Int            @id @default(autoincrement())
+  fullName         String
+  email            String         @unique
+  phone            String?
+  department       String?
+  position         String?
+  role             String         @default("employee")
+  passwordHash     String
+  leaveBalance     Int            @default(18)
+  mustChangePassword Boolean      @default(false)
+  status           String         @default("active")
+  createdAt        DateTime       @default(now())
 
-  attendance    Attendance[]
-  leaveRequests LeaveRequest[]
+  attendance       Attendance[]
+  leaveRequests    LeaveRequest[]
+  loginHistory     LoginHistory[]
+  suspiciousLogs   SuspiciousLog[]
 }
 
 model Attendance {
-  id         Int      @id @default(autoincrement())
-  employeeId Int
-  date       DateTime @db.Date
-  checkIn    DateTime?
-  checkOut   DateTime?
-  hours      Float?
-  createdAt  DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  employeeId   Int
+  date         DateTime  @db.Date
+  checkIn      DateTime?
+  checkOut     DateTime?
+  hours        Float?
+  status       String    @default("present")
+  latitude     Float?
+  longitude    Float?
+  ipAddress    String?
+  device       String?
+  distanceFromOffice Float?
+  createdAt    DateTime  @default(now())
 
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
 }
@@ -44,17 +56,33 @@ model LeaveRequest {
   days       Int      @default(1)
   reason     String   @db.Text
   status     String   @default("pending")
+  approvedBy Int?
   createdAt  DateTime @default(now())
 
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
-model Message {
+model LoginHistory {
   id         Int      @id @default(autoincrement())
-  senderId   Int
-  receiverId Int
-  text       String
-  createdAt  DateTime @default(now())
+  employeeId Int
+  ipAddress  String?
+  device     String?
+  browser    String?
+  loginTime  DateTime @default(now())
+  success    Boolean  @default(true)
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model SuspiciousLog {
+  id          Int      @id @default(autoincrement())
+  employeeId  Int
+  type        String
+  description String   @db.Text
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Department {

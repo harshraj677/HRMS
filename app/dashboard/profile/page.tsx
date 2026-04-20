@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   Mail,
   Phone,
@@ -75,11 +74,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       {/* Profile Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
-      >
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {/* Banner */}
         <div className="h-28 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600" />
 
@@ -139,14 +134,10 @@ export default function ProfilePage() {
             })}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
+      <div>
         <Tabs defaultValue="overview">
           <TabsList className="bg-white border border-slate-100 shadow-sm">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -299,7 +290,7 @@ export default function ProfilePage() {
             </div>
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </div>
     </div>
   );
 }

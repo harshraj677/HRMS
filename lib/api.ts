@@ -90,15 +90,6 @@ export const api = {
   getLeaveBalance: () =>
     apiClient.get("/leave/balance"),
 
-  // Messages
-  getMessages: () => apiClient.get("/messages"),
-  sendMessage: (data: { to: string; subject: string; body: string }) =>
-    apiClient.post("/messages", data),
-
-  // Calendar
-  getCalendarEvents: (month?: number, year?: number) =>
-    apiClient.get("/calendar/events", { params: { month, year } }),
-
   // Analytics
   getAnalytics: () => apiClient.get("/analytics"),
 };

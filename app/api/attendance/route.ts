@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
   if (payload.role === "admin") {
     if (employeeId) {
       query = `
-        SELECT a.*, e.fullName FROM Attendance a
+        SELECT a.id, a.employeeId, a.date, a.checkIn, a.checkOut, a.hours, a.status,
+               a.latitude, a.longitude, a.ipAddress, a.device, a.distanceFromOffice,
+               e.fullName
+        FROM Attendance a
         JOIN Employee e ON e.id = a.employeeId
         WHERE a.employeeId = ?
         ORDER BY a.date DESC LIMIT 60
@@ -27,15 +30,21 @@ export async function GET(req: NextRequest) {
       params = [employeeId];
     } else {
       query = `
-        SELECT a.*, e.fullName FROM Attendance a
+        SELECT a.id, a.employeeId, a.date, a.checkIn, a.checkOut, a.hours, a.status,
+               a.latitude, a.longitude, a.ipAddress, a.device, a.distanceFromOffice,
+               e.fullName
+        FROM Attendance a
         JOIN Employee e ON e.id = a.employeeId
-        ORDER BY a.date DESC LIMIT 100
+        ORDER BY a.date DESC LIMIT 200
       `;
       params = [];
     }
   } else {
     query = `
-      SELECT a.*, e.fullName FROM Attendance a
+      SELECT a.id, a.employeeId, a.date, a.checkIn, a.checkOut, a.hours, a.status,
+             a.latitude, a.longitude, a.distanceFromOffice,
+             e.fullName
+      FROM Attendance a
       JOIN Employee e ON e.id = a.employeeId
       WHERE a.employeeId = ?
       ORDER BY a.date DESC LIMIT 60

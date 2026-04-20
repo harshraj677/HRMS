@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn, getInitials } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, useChangePassword } from "@/hooks/useAuth";
 import { useEmployee } from "@/hooks/useEmployees";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -64,6 +63,7 @@ export default function SettingsPage() {
   const { data: authUser } = useAuth();
   const { data: employee, isLoading: empLoading } = useEmployee(authUser?.id ?? "");
   const queryClient = useQueryClient();
+  const changePassword = useChangePassword();
 
   const [notifications, setNotifications] = useState<Record<string, boolean>>(
     Object.fromEntries(notificationSettings.map(n => [n.id, n.default]))
@@ -92,7 +92,6 @@ export default function SettingsPage() {
   const passwordForm = useForm<PasswordData>({ resolver: zodResolver(passwordSchema) });
 
   const [profileSaving, setProfileSaving] = useState(false);
-  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const onSaveProfile = async (data: ProfileData) => {
     if (!authUser) return;
@@ -122,11 +121,16 @@ export default function SettingsPage() {
   };
 
   const onChangePassword = async (data: PasswordData) => {
-    setPasswordSaving(true);
-    await new Promise(r => setTimeout(r, 900));
-    setPasswordSaving(false);
-    passwordForm.reset();
-    toast.success("Password changed successfully");
+    try {
+      await changePassword.mutateAsync({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+      passwordForm.reset();
+      toast.success("Password changed successfully");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to change password");
+    }
   };
 
   const saveNotifications = async () => {
@@ -142,7 +146,7 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500 mt-0.5">Manage your account preferences</p>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <div>
         <Tabs defaultValue="profile">
           <TabsList className="bg-white border border-slate-100 shadow-sm">
             <TabsTrigger value="profile" className="gap-1.5"><User className="w-3.5 h-3.5" />Profile</TabsTrigger>
@@ -237,6 +241,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
+                      aria-label={`Toggle ${n.label}`}
                       onClick={() => setNotifications(prev => ({ ...prev, [n.id]: !prev[n.id] }))}
                       className={cn(
                         "relative w-10 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
@@ -314,8 +319,8 @@ export default function SettingsPage() {
                   {passwordForm.formState.errors.confirmPassword && <p className="text-xs text-red-500">{passwordForm.formState.errors.confirmPassword.message}</p>}
                 </div>
                 <div className="pt-2">
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 rounded-xl" disabled={passwordSaving}>
-                    {passwordSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</> : "Update Password"}
+                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 rounded-xl" disabled={changePassword.isPending}>
+                    {changePassword.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</> : "Update Password"}
                   </Button>
                 </div>
               </form>
@@ -323,7 +328,7 @@ export default function SettingsPage() {
               <div>
                 <h3 className="text-sm font-semibold text-slate-800 mb-1">Two-Factor Authentication</h3>
                 <p className="text-xs text-slate-500 mb-3">Add an extra layer of security to your account.</p>
-                <Button variant="outline" className="rounded-xl text-sm">Enable 2FA</Button>
+                <Button type="button" variant="outline" className="rounded-xl text-sm">Enable 2FA</Button>
               </div>
             </div>
           </TabsContent>
@@ -356,7 +361,7 @@ export default function SettingsPage() {
               <div>
                 <h3 className="text-sm font-semibold text-slate-800 mb-1">Language</h3>
                 <p className="text-xs text-slate-500 mb-3">Choose your display language.</p>
-                <select className="h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[180px]">
+                <select aria-label="Language" className="h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[180px]">
                   <option value="en">English</option>
                   <option value="hi">Hindi</option>
                   <option value="te">Telugu</option>
@@ -366,7 +371,7 @@ export default function SettingsPage() {
               <div>
                 <h3 className="text-sm font-semibold text-slate-800 mb-1">Sidebar</h3>
                 <p className="text-xs text-slate-500 mb-3">Choose default sidebar state on load.</p>
-                <select className="h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[180px]">
+                <select aria-label="Sidebar default state" className="h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[180px]">
                   <option value="expanded">Expanded</option>
                   <option value="collapsed">Collapsed</option>
                 </select>
@@ -374,7 +379,7 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </div>
     </div>
   );
 }
