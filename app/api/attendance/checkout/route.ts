@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-/** POST /api/attendance/checkout — employee checks out for today */
+
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -9,30 +9,31 @@ export async function POST(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
 
-  // Find today's attendance record
-  const [existing] = await db.execute<any[]>(
-    "SELECT id, checkIn, checkOut FROM Attendance WHERE employeeId = ? AND date = ?",
-    [payload.id, todayStr]
-  );
+  const record = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId: payload.id, date: todayDate } },
+  });
 
-  const record = (existing as any[])[0];
   if (!record) {
     return NextResponse.json({ error: "You haven't checked in today." }, { status: 400 });
   }
   if (record.checkOut) {
-    return NextResponse.json({ error: "Already checked out today.", checkOut: record.checkOut }, { status: 400 });
+    return NextResponse.json(
+      { error: "Already checked out today.", checkOut: record.checkOut },
+      { status: 400 }
+    );
   }
 
-  // Calculate hours
-  const checkInTime = new Date(record.checkIn);
-  const hours = parseFloat(((now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)).toFixed(2));
-
-  await db.execute(
-    "UPDATE Attendance SET checkOut = ?, hours = ? WHERE id = ?",
-    [now, hours, record.id]
+  const checkInTime = new Date(record.checkIn!);
+  const hours = parseFloat(
+    ((now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)).toFixed(2)
   );
+
+  await prisma.attendance.update({
+    where: { id: record.id },
+    data: { checkOut: now, hours },
+  });
 
   return NextResponse.json({
     message: "Checked out successfully.",

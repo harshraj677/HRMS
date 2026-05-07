@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { isWithinGeofence, getAttendanceStatus } from "@/lib/geofence";
-/** POST /api/attendance/checkin — employee checks in for today with geofencing */
+
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -11,11 +11,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
 
-  // Extract geolocation data
   const latitude = body?.latitude != null ? Number(body.latitude) : null;
   const longitude = body?.longitude != null ? Number(body.longitude) : null;
 
-  // Validate geofence
   if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
     return NextResponse.json(
       { error: "Location data is required. Please enable location services." },
@@ -25,16 +23,14 @@ export async function POST(req: NextRequest) {
 
   const geoCheck = isWithinGeofence(latitude, longitude);
   if (!geoCheck.allowed) {
-    // Log suspicious activity
-    await db.execute(
-      "INSERT INTO SuspiciousLog (employeeId, type, description, ipAddress) VALUES (?, ?, ?, ?)",
-      [
-        payload.id,
-        "geofence_violation",
-        `Attempted check-in from ${geoCheck.distance}m away from office (limit: 200m). Lat: ${latitude}, Lng: ${longitude}`,
-        getClientIP(req),
-      ]
-    );
+    await prisma.suspiciousLog.create({
+      data: {
+        employeeId: payload.id,
+        type: "geofence_violation",
+        description: `Attempted check-in from ${geoCheck.distance}m away from office (limit: 200m). Lat: ${latitude}, Lng: ${longitude}`,
+        ipAddress: getClientIP(req),
+      },
+    });
 
     return NextResponse.json(
       {
@@ -46,17 +42,15 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
 
-  // Check if already checked in today
-  const [existing] = await db.execute<any[]>(
-    "SELECT id, checkIn FROM Attendance WHERE employeeId = ? AND date = ?",
-    [payload.id, todayStr]
-  );
+  const existing = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId: payload.id, date: todayDate } },
+  });
 
-  if ((existing as any[]).length > 0) {
+  if (existing) {
     return NextResponse.json(
-      { error: "Already checked in today.", checkIn: (existing as any[])[0].checkIn },
+      { error: "Already checked in today.", checkIn: existing.checkIn },
       { status: 400 }
     );
   }
@@ -65,18 +59,29 @@ export async function POST(req: NextRequest) {
   const device = req.headers.get("user-agent") || null;
   const status = getAttendanceStatus(now);
 
-  await db.execute(
-    `INSERT INTO Attendance (employeeId, date, checkIn, status, latitude, longitude, ipAddress, device, distanceFromOffice)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [payload.id, todayStr, now, status, latitude, longitude, ipAddress, device, geoCheck.distance]
-  );
+  await prisma.attendance.create({
+    data: {
+      employeeId: payload.id,
+      date: todayDate,
+      checkIn: now,
+      status,
+      latitude,
+      longitude,
+      ipAddress,
+      device,
+      distanceFromOffice: geoCheck.distance,
+    },
+  });
 
-  return NextResponse.json({
-    message: "Checked in successfully.",
-    checkIn: now.toISOString(),
-    status,
-    distance: geoCheck.distance,
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      message: "Checked in successfully.",
+      checkIn: now.toISOString(),
+      status,
+      distance: geoCheck.distance,
+    },
+    { status: 201 }
+  );
 }
 
 function getClientIP(req: NextRequest): string {

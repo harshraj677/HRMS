@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-/** GET /api/auth/login-history — admin: all, employee: own */
+
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -9,41 +9,29 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const url = new URL(req.url);
-  const employeeId = url.searchParams.get("employeeId");
+  const filterEmployeeId = url.searchParams.get("employeeId");
 
-  let query: string;
-  let params: unknown[];
+  const take = payload.role === "admin" ? (filterEmployeeId ? 50 : 100) : 20;
+  const whereEmployeeId =
+    payload.role === "admin" ? (filterEmployeeId ?? undefined) : payload.id;
 
-  if (payload.role === "admin") {
-    if (employeeId) {
-      query = `
-        SELECT lh.*, e.fullName
-        FROM LoginHistory lh
-        JOIN Employee e ON e.id = lh.employeeId
-        WHERE lh.employeeId = ?
-        ORDER BY lh.loginTime DESC LIMIT 50
-      `;
-      params = [employeeId];
-    } else {
-      query = `
-        SELECT lh.*, e.fullName
-        FROM LoginHistory lh
-        JOIN Employee e ON e.id = lh.employeeId
-        ORDER BY lh.loginTime DESC LIMIT 100
-      `;
-      params = [];
-    }
-  } else {
-    query = `
-      SELECT lh.*, e.fullName
-      FROM LoginHistory lh
-      JOIN Employee e ON e.id = lh.employeeId
-      WHERE lh.employeeId = ?
-      ORDER BY lh.loginTime DESC LIMIT 20
-    `;
-    params = [payload.id];
-  }
+  const records = await prisma.loginHistory.findMany({
+    where: whereEmployeeId ? { employeeId: whereEmployeeId } : {},
+    include: { employee: { select: { fullName: true } } },
+    orderBy: { loginTime: "desc" },
+    take,
+  });
 
-  const [rows] = await db.execute<any[]>(query, params as any[]);
-  return NextResponse.json({ history: rows });
+  const history = records.map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    ipAddress: r.ipAddress,
+    device: r.device,
+    browser: r.browser,
+    loginTime: r.loginTime,
+    success: r.success,
+    fullName: r.employee.fullName,
+  }));
+
+  return NextResponse.json({ history });
 }

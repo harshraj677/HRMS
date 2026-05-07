@@ -1,55 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
-interface LeaveRow {
-  id: number;
-  employeeId: number;
-  startDate: string;
-  endDate: string;
-  days: number;
-  reason: string;
-  status: string;
-  createdAt: string;
-  fullName: string;
-  department: string | null;
-  leaveBalance: number;
-}
-
-/** GET /api/leave — admin: all, employee: own */
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-  let query: string;
-  let params: unknown[];
+  const records = await prisma.leaveRequest.findMany({
+    where: payload.role === "admin" ? {} : { employeeId: payload.id },
+    include: {
+      employee: { select: { fullName: true, department: true, leaveBalance: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-  if (payload.role === "admin") {
-    query = `
-      SELECT lr.*, e.fullName, e.department, e.leaveBalance
-      FROM LeaveRequest lr
-      JOIN Employee e ON e.id = lr.employeeId
-      ORDER BY lr.createdAt DESC
-    `;
-    params = [];
-  } else {
-    query = `
-      SELECT lr.*, e.fullName, e.department, e.leaveBalance
-      FROM LeaveRequest lr
-      JOIN Employee e ON e.id = lr.employeeId
-      WHERE lr.employeeId = ?
-      ORDER BY lr.createdAt DESC
-    `;
-    params = [payload.id];
-  }
+  const leaves = records.map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    days: r.days,
+    reason: r.reason,
+    status: r.status,
+    approvedBy: r.approvedBy,
+    createdAt: r.createdAt,
+    fullName: r.employee.fullName,
+    department: r.employee.department,
+    leaveBalance: r.employee.leaveBalance,
+  }));
 
-  const [rows] = await db.execute<LeaveRow[]>(query, params as any[]);
-  return NextResponse.json({ leaves: rows });
+  return NextResponse.json({ leaves });
 }
 
-/** POST /api/leave — employee applies for leave */
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -58,7 +42,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   if (!body?.startDate || !body?.endDate || !body?.reason) {
-    return NextResponse.json({ error: "startDate, endDate, and reason are required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "startDate, endDate, and reason are required." },
+      { status: 400 }
+    );
   }
 
   const start = new Date(body.startDate);
@@ -67,26 +54,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid date range." }, { status: 400 });
   }
 
-  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const days =
+    Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-  const [empRows] = await db.execute<any[]>(
-    "SELECT leaveBalance FROM Employee WHERE id = ?",
-    [payload.id]
-  );
-  const emp = (empRows as any[])[0];
+  const emp = await prisma.employee.findUnique({
+    where: { id: payload.id },
+    select: { leaveBalance: true },
+  });
   if (!emp) return NextResponse.json({ error: "Employee not found." }, { status: 404 });
 
   if (days > emp.leaveBalance) {
     return NextResponse.json(
-      { error: `Insufficient leave balance. You have ${emp.leaveBalance} day(s) remaining.` },
+      {
+        error: `Insufficient leave balance. You have ${emp.leaveBalance} day(s) remaining.`,
+      },
       { status: 400 }
     );
   }
 
-  await db.execute(
-    "INSERT INTO LeaveRequest (employeeId, startDate, endDate, days, reason, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-    [payload.id, body.startDate, body.endDate, days, body.reason.trim()]
-  );
+  await prisma.leaveRequest.create({
+    data: {
+      employeeId: payload.id,
+      startDate: start,
+      endDate: end,
+      days,
+      reason: body.reason.trim(),
+      status: "pending",
+    },
+  });
 
   return NextResponse.json({ message: "Leave request submitted.", days }, { status: 201 });
 }

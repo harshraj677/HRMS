@@ -1,84 +1,149 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
-/** GET /api/analytics — admin analytics data */
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
-  if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (payload.role !== "admin")
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  // Attendance trend: last 30 days daily stats
-  const [trendRows] = await db.execute<any[]>(`
-    SELECT
-      TO_CHAR(a.date, 'Mon DD') as date,
-      SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present,
-      SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late,
-      (SELECT COUNT(*) FROM "Employee" WHERE role != 'admin') -
-        COUNT(DISTINCT a."employeeId") as absent
-    FROM "Attendance" a
-    WHERE a.date >= CURRENT_DATE - INTERVAL '30 DAY'
-    GROUP BY a.date
-    ORDER BY a.date ASC
-  `);
-
-  // Department-wise attendance (current month)
-  const [deptRows] = await db.execute<any[]>(`
-    SELECT
-      COALESCE(e.department, 'Unassigned') as department,
-      SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present,
-      SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late,
-      SUM(CASE WHEN a.status = 'absent' OR a.status IS NULL THEN 1 ELSE 0 END) as absent
-    FROM "Employee" e
-    LEFT JOIN "Attendance" a ON a."employeeId" = e.id
-      AND EXTRACT(MONTH FROM a.date)::int = EXTRACT(MONTH FROM CURRENT_DATE)::int
-      AND EXTRACT(YEAR FROM a.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int
-    WHERE e.role != 'admin'
-    GROUP BY e.department
-  `);
-
-  // Monthly leave requests breakdown
-  const [leaveMonthly] = await db.execute<any[]>(`
-    SELECT
-      TO_CHAR("createdAt", 'Mon') as month,
-      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
-      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
-      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
-    FROM "LeaveRequest"
-    WHERE "createdAt" >= CURRENT_DATE - INTERVAL '6 MONTH'
-    GROUP BY EXTRACT(YEAR FROM "createdAt"), EXTRACT(MONTH FROM "createdAt"), TO_CHAR("createdAt", 'Mon')
-    ORDER BY EXTRACT(YEAR FROM "createdAt"), EXTRACT(MONTH FROM "createdAt") ASC
-  `);
-
-  // Employee attendance ranking (current month)
-  const [rankingRows] = await db.execute<any[]>(`
-    SELECT
-      e.id, e."fullName", e.department,
-      COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentDays",
-      COUNT(CASE WHEN a.status = 'late' THEN 1 END) as "lateDays",
-      COUNT(a.id) as "totalDays"
-    FROM "Employee" e
-    LEFT JOIN "Attendance" a ON a."employeeId" = e.id
-      AND EXTRACT(MONTH FROM a.date)::int = EXTRACT(MONTH FROM CURRENT_DATE)::int
-      AND EXTRACT(YEAR FROM a.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int
-    WHERE e.role != 'admin'
-    GROUP BY e.id, e."fullName", e.department
-    ORDER BY "presentDays" DESC
-    LIMIT 10
-  `);
-
-  // Suspicious activity count
-  const [suspiciousRows] = await db.execute<any[]>(
-    `SELECT COUNT(*) as total FROM "SuspiciousLog" WHERE "createdAt" >= CURRENT_DATE - INTERVAL '30 DAY'`
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+  const sixMonthsAgo = new Date(now);
+  sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
+  const startOfMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  );
+  const startOfNextMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)
   );
 
+  const [recentAttendance, totalNonAdmins, employeesWithAttendance, recentLeaves, suspiciousCount] =
+    await Promise.all([
+      prisma.attendance.findMany({
+        where: { date: { gte: thirtyDaysAgo } },
+        select: { date: true, status: true },
+      }),
+      prisma.employee.count({ where: { role: { not: "admin" } } }),
+      prisma.employee.findMany({
+        where: { role: { not: "admin" } },
+        select: {
+          id: true,
+          fullName: true,
+          department: true,
+          attendance: {
+            where: { date: { gte: startOfMonth, lt: startOfNextMonth } },
+            select: { id: true, status: true },
+          },
+        },
+      }),
+      prisma.leaveRequest.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true, status: true },
+      }),
+      prisma.suspiciousLog.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    ]);
+
+  // ── Attendance Trend (last 30 days) ────────────────────────────────────────
+  const byDate = new Map<string, { present: number; late: number; checkedIn: number }>();
+  for (const r of recentAttendance) {
+    const key = r.date.toISOString().slice(0, 10);
+    if (!byDate.has(key)) byDate.set(key, { present: 0, late: 0, checkedIn: 0 });
+    const d = byDate.get(key)!;
+    d.checkedIn++;
+    if (r.status === "present") d.present++;
+    else if (r.status === "late") d.late++;
+  }
+  const attendanceTrend = Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dateStr, counts]) => {
+      const d = new Date(dateStr);
+      return {
+        date: `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCDate()).padStart(2, "0")}`,
+        present: counts.present,
+        late: counts.late,
+        absent: Math.max(0, totalNonAdmins - counts.present - counts.late),
+      };
+    });
+
+  // ── Department Attendance (current month) ──────────────────────────────────
+  const deptMap = new Map<string, { present: number; late: number; absent: number }>();
+  for (const emp of employeesWithAttendance) {
+    const dept = emp.department || "Unassigned";
+    if (!deptMap.has(dept)) deptMap.set(dept, { present: 0, late: 0, absent: 0 });
+    const d = deptMap.get(dept)!;
+    for (const a of emp.attendance) {
+      if (a.status === "present") d.present++;
+      else if (a.status === "late") d.late++;
+      else d.absent++;
+    }
+  }
+  const departmentAttendance = Array.from(deptMap.entries()).map(
+    ([department, counts]) => ({ department, ...counts })
+  );
+
+  // ── Monthly Leave Requests (last 6 months) ─────────────────────────────────
+  type MonthEntry = {
+    month: string;
+    approved: number;
+    rejected: number;
+    pending: number;
+    sortKey: number;
+  };
+  const monthLeaveMap = new Map<string, MonthEntry>();
+  for (const l of recentLeaves) {
+    const d = l.createdAt;
+    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+    if (!monthLeaveMap.has(key)) {
+      monthLeaveMap.set(key, {
+        month: MONTHS[d.getUTCMonth()],
+        approved: 0,
+        rejected: 0,
+        pending: 0,
+        sortKey: d.getUTCFullYear() * 100 + d.getUTCMonth(),
+      });
+    }
+    const m = monthLeaveMap.get(key)!;
+    if (l.status === "approved") m.approved++;
+    else if (l.status === "rejected") m.rejected++;
+    else m.pending++;
+  }
+  const leaveMonthly = Array.from(monthLeaveMap.values())
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(({ month, approved, rejected, pending }) => ({
+      month,
+      approved,
+      rejected,
+      pending,
+    }));
+
+  // ── Employee Ranking (current month) ──────────────────────────────────────
+  const employeeRanking = employeesWithAttendance
+    .map((emp) => ({
+      id: emp.id,
+      fullName: emp.fullName,
+      department: emp.department,
+      presentDays: emp.attendance.filter((a) => a.status === "present").length,
+      lateDays: emp.attendance.filter((a) => a.status === "late").length,
+      totalDays: emp.attendance.length,
+    }))
+    .sort((a, b) => b.presentDays - a.presentDays)
+    .slice(0, 10);
+
   return NextResponse.json({
-    attendanceTrend: trendRows,
-    departmentAttendance: deptRows,
+    attendanceTrend,
+    departmentAttendance,
     leaveMonthly,
-    employeeRanking: rankingRows,
-    suspiciousCount: Number((suspiciousRows as any[])[0].total),
+    employeeRanking,
+    suspiciousCount,
   });
 }

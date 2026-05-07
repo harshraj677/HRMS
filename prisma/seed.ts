@@ -1,11 +1,11 @@
-import mysql from "mysql2/promise";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import "dotenv/config";
 
+const prisma = new PrismaClient();
 const SALT_ROUNDS = 12;
 
 const users = [
-  // ── Admin ──────────────────────────────────────────────────────────────────
   {
     fullName: "Harish Gadagin",
     email: "harish@anvesana.org",
@@ -16,7 +16,6 @@ const users = [
     leaveBalance: 18,
     phone: "+91-9876543210",
   },
-  // ── Employees ──────────────────────────────────────────────────────────────
   {
     fullName: "Bharath Kumar K R",
     email: "bharath@anvesana.org",
@@ -60,51 +59,34 @@ const users = [
 ];
 
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is not set.");
-  }
-
-  const url = new URL(databaseUrl);
-  const connection = await mysql.createConnection({
-    host: url.hostname,
-    port: parseInt(url.port) || 3306,
-    user: url.username,
-    password: decodeURIComponent(url.password),
-    database: url.pathname.slice(1),
-  });
   console.log("🌱  Seeding Anvesana Workforce Management database...\n");
 
-  try {
-    // Clear existing data in correct order (foreign keys)
-    await connection.execute("DELETE FROM SuspiciousLog");
-    await connection.execute("DELETE FROM LoginHistory");
-    await connection.execute("DELETE FROM LeaveRequest");
-    await connection.execute("DELETE FROM Attendance");
-    await connection.execute("DELETE FROM Employee");
-    console.log("🗑️   Cleared existing data.\n");
+  await prisma.suspiciousLog.deleteMany();
+  await prisma.loginHistory.deleteMany();
+  await prisma.leaveRequest.deleteMany();
+  await prisma.attendance.deleteMany();
+  await prisma.employee.deleteMany();
+  console.log("🗑️   Cleared existing data.\n");
 
-    for (const user of users) {
-      const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
-
-      await connection.execute(
-        `INSERT INTO Employee (fullName, email, department, position, role, passwordHash, leaveBalance, phone, mustChangePassword, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [user.fullName, user.email, user.department, user.position, user.role, passwordHash, user.leaveBalance, user.phone, false, "active"]
-      );
-
-      console.log(`✅  Created  – ${user.fullName} <${user.email}> [${user.role}] (${user.position})`);
-    }
-
-    console.log("\n🎉  Seeding complete. 5 users created.");
-    console.log("   Admin: harish@anvesana.org / Admin@123");
-    console.log("   Employees: bharath/pavan/vishwa/sarvesh@anvesana.org / Employee@123");
-  } finally {
-    await connection.end();
+  for (const user of users) {
+    const { password, ...data } = user;
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await prisma.employee.create({
+      data: { ...data, passwordHash, mustChangePassword: false, status: "active" },
+    });
+    console.log(
+      `✅  Created  – ${user.fullName} <${user.email}> [${user.role}] (${user.position})`
+    );
   }
+
+  console.log("\n🎉  Seeding complete. 5 users created.");
+  console.log("   Admins:    harish@anvesana.org / Admin@123");
+  console.log("   Employees: bharath/pavan/vishwa@anvesana.org / Employee@123");
 }
 
-main().catch((e) => {
-  console.error("❌  Seed failed:", e);
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error("❌  Seed failed:", e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

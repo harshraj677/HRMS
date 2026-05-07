@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 const TOKEN_TTL = "8h";
 
 export interface JWTPayload {
-  id: number;
+  id: string;
   email: string;
   role: string;
   fullName: string;

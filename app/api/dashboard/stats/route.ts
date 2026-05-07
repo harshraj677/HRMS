@@ -1,46 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
-/** GET /api/dashboard/stats — dashboard stats (role-aware) */
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date(
+    new Date().toISOString().slice(0, 10) + "T00:00:00.000Z"
+  );
 
   if (payload.role === "admin") {
-    const [empRows] = await db.execute<any[]>(
-      "SELECT COUNT(*) as total FROM Employee WHERE role != 'admin'"
-    );
-    const totalEmployees = Number((empRows as any[])[0].total);
+    const [totalEmployees, presentToday, lateToday, onLeave, pendingLeaveRequests] =
+      await Promise.all([
+        prisma.employee.count({ where: { role: { not: "admin" } } }),
+        prisma.attendance.count({ where: { date: todayDate, checkIn: { not: null } } }),
+        prisma.attendance.count({ where: { date: todayDate, status: "late" } }),
+        prisma.leaveRequest.count({
+          where: {
+            status: "approved",
+            startDate: { lte: todayDate },
+            endDate: { gte: todayDate },
+          },
+        }),
+        prisma.leaveRequest.count({ where: { status: "pending" } }),
+      ]);
 
-    const [presentRows] = await db.execute<any[]>(
-      "SELECT COUNT(*) as total FROM Attendance WHERE date = ? AND checkIn IS NOT NULL",
-      [todayStr]
-    );
-    const presentToday = Number((presentRows as any[])[0].total);
-
-    const [lateRows] = await db.execute<any[]>(
-      "SELECT COUNT(*) as total FROM Attendance WHERE date = ? AND status = 'late'",
-      [todayStr]
-    );
-    const lateToday = Number((lateRows as any[])[0].total);
-
-    const [leaveRows] = await db.execute<any[]>(
-      "SELECT COUNT(*) as total FROM LeaveRequest WHERE status = 'approved' AND startDate <= ? AND endDate >= ?",
-      [todayStr, todayStr]
-    );
-    const onLeave = Number((leaveRows as any[])[0].total);
-
-    const [pendingRows] = await db.execute<any[]>(
-      "SELECT COUNT(*) as total FROM LeaveRequest WHERE status = 'pending'"
-    );
-    const pendingLeaveRequests = Number((pendingRows as any[])[0].total);
-
-    const percentPresent = totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 100) : 0;
+    const percentPresent =
+      totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 100) : 0;
 
     return NextResponse.json({
       totalEmployees,
@@ -52,33 +41,48 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Employee personal stats
-  const [myAttendance] = await db.execute<any[]>(
-    "SELECT COUNT(*) as total FROM Attendance WHERE employeeId = ? AND EXTRACT(MONTH FROM date)::int = EXTRACT(MONTH FROM CURRENT_DATE)::int AND EXTRACT(YEAR FROM date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int",
-    [payload.id]
-  );
-  const [myLateCount] = await db.execute<any[]>(
-    "SELECT COUNT(*) as total FROM Attendance WHERE employeeId = ? AND status = 'late' AND EXTRACT(MONTH FROM date)::int = EXTRACT(MONTH FROM CURRENT_DATE)::int AND EXTRACT(YEAR FROM date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int",
-    [payload.id]
-  );
-  const [myLeaves] = await db.execute<any[]>(
-    "SELECT COUNT(*) as total FROM LeaveRequest WHERE employeeId = ? AND status = 'approved' AND EXTRACT(MONTH FROM startDate)::int = EXTRACT(MONTH FROM CURRENT_DATE)::int AND EXTRACT(YEAR FROM startDate)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int",
-    [payload.id]
-  );
-  const [myPending] = await db.execute<any[]>(
-    "SELECT COUNT(*) as total FROM LeaveRequest WHERE employeeId = ? AND status = 'pending'",
-    [payload.id]
-  );
-  const [empInfo] = await db.execute<any[]>(
-    "SELECT leaveBalance FROM Employee WHERE id = ?",
-    [payload.id]
+  const now = new Date();
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const startOfNextMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)
   );
 
+  const [monthlyAttendance, monthlyLate, monthlyLeaves, pendingRequests, emp] =
+    await Promise.all([
+      prisma.attendance.count({
+        where: {
+          employeeId: payload.id,
+          date: { gte: startOfMonth, lt: startOfNextMonth },
+        },
+      }),
+      prisma.attendance.count({
+        where: {
+          employeeId: payload.id,
+          status: "late",
+          date: { gte: startOfMonth, lt: startOfNextMonth },
+        },
+      }),
+      prisma.leaveRequest.count({
+        where: {
+          employeeId: payload.id,
+          status: "approved",
+          startDate: { gte: startOfMonth, lt: startOfNextMonth },
+        },
+      }),
+      prisma.leaveRequest.count({
+        where: { employeeId: payload.id, status: "pending" },
+      }),
+      prisma.employee.findUnique({
+        where: { id: payload.id },
+        select: { leaveBalance: true },
+      }),
+    ]);
+
   return NextResponse.json({
-    monthlyAttendance: Number((myAttendance as any[])[0].total),
-    monthlyLate: Number((myLateCount as any[])[0].total),
-    monthlyLeaves: Number((myLeaves as any[])[0].total),
-    pendingRequests: Number((myPending as any[])[0].total),
-    leaveBalance: (empInfo as any[])[0]?.leaveBalance ?? 0,
+    monthlyAttendance,
+    monthlyLate,
+    monthlyLeaves,
+    pendingRequests,
+    leaveBalance: emp?.leaveBalance ?? 0,
   });
 }

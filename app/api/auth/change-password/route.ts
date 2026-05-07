@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-/** POST /api/auth/change-password — change own password */
+
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -18,23 +18,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "New password must be at least 6 characters." }, { status: 400 });
   }
 
-  const [rows] = await db.execute<any[]>(
-    "SELECT passwordHash FROM Employee WHERE id = ?",
-    [payload.id]
-  );
-  const emp = (rows as any[])[0];
+  const emp = await prisma.employee.findUnique({
+    where: { id: payload.id },
+    select: { passwordHash: true },
+  });
   if (!emp) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
   const match = await bcrypt.compare(body.currentPassword, emp.passwordHash);
-  if (!match) {
-    return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
-  }
+  if (!match) return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
 
   const newHash = await bcrypt.hash(body.newPassword, 12);
-  await db.execute(
-    "UPDATE Employee SET passwordHash = ?, mustChangePassword = false WHERE id = ?",
-    [newHash, payload.id]
-  );
+  await prisma.employee.update({
+    where: { id: payload.id },
+    data: { passwordHash: newHash, mustChangePassword: false },
+  });
 
   return NextResponse.json({ message: "Password changed successfully." });
 }

@@ -87,7 +87,8 @@ export default function LoginPage() {
 
       // JWT is stored in HttpOnly cookie by the API – just redirect
       router.push("/dashboard");
-    } catch {
+    } catch (err) {
+      console.error("[login] fetch error:", err);
       setLoginError("Network error. Please check your connection.");
       setIsLoading(false);
     }

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { signToken, buildAuthCookie } from "@/lib/auth";
-
-interface EmployeeRow {
-  id: number;
-  fullName: string;
-  email: string;
-  role: string;
-  passwordHash: string;
-  department: string | null;
-  position: string | null;
-  mustChangePassword: boolean;
-}
 
 function getClientIP(req: NextRequest): string {
   return (
@@ -45,13 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Query employee from DB
-    const [rows] = await db.execute<EmployeeRow[]>(
-      "SELECT id, fullName, email, role, passwordHash, department, position, mustChangePassword FROM Employee WHERE email = ? LIMIT 1",
-      [email]
-    );
-
-    const employee = rows[0];
+    const employee = await prisma.employee.findUnique({ where: { email } });
 
     if (!employee) {
       await bcrypt.hash("dummy", 10);
@@ -64,24 +47,34 @@ export async function POST(req: NextRequest) {
     const passwordMatch = await bcrypt.compare(password, employee.passwordHash);
 
     if (!passwordMatch) {
-      // Log failed login attempt
-      await db.execute(
-        "INSERT INTO LoginHistory (employeeId, ipAddress, device, browser, success) VALUES (?, ?, ?, ?, ?)",
-        [employee.id, ipAddress, userAgent, parseBrowser(userAgent), false]
-      );
+      await prisma.loginHistory.create({
+        data: {
+          employeeId: employee.id,
+          ipAddress,
+          device: userAgent,
+          browser: parseBrowser(userAgent),
+          success: false,
+        },
+      });
 
-      // Check for frequent failed logins (fraud detection)
-      const [failedRows] = await db.execute<{ cnt: number }[]>(
-        "SELECT COUNT(*) as cnt FROM LoginHistory WHERE employeeId = ? AND success = 0 AND loginTime > DATE_SUB(NOW(), INTERVAL 30 MINUTE)",
-        [employee.id]
-      );
-      const failedCount = (failedRows as { cnt: number }[])[0].cnt;
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const failedCount = await prisma.loginHistory.count({
+        where: {
+          employeeId: employee.id,
+          success: false,
+          loginTime: { gte: thirtyMinutesAgo },
+        },
+      });
 
       if (failedCount >= 5) {
-        await db.execute(
-          "INSERT INTO SuspiciousLog (employeeId, type, description, ipAddress) VALUES (?, ?, ?, ?)",
-          [employee.id, "frequent_failed_login", `${failedCount} failed login attempts in the last 30 minutes from IP: ${ipAddress}`, ipAddress]
-        );
+        await prisma.suspiciousLog.create({
+          data: {
+            employeeId: employee.id,
+            type: "frequent_failed_login",
+            description: `${failedCount} failed login attempts in the last 30 minutes from IP: ${ipAddress}`,
+            ipAddress,
+          },
+        });
       }
 
       return NextResponse.json(
@@ -90,11 +83,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log successful login
-    await db.execute(
-      "INSERT INTO LoginHistory (employeeId, ipAddress, device, browser, success) VALUES (?, ?, ?, ?, ?)",
-      [employee.id, ipAddress, userAgent, parseBrowser(userAgent), true]
-    );
+    await prisma.loginHistory.create({
+      data: {
+        employeeId: employee.id,
+        ipAddress,
+        device: userAgent,
+        browser: parseBrowser(userAgent),
+        success: true,
+      },
+    });
 
     const token = signToken({
       id: employee.id,
@@ -113,7 +110,7 @@ export async function POST(req: NextRequest) {
         role: employee.role,
         department: employee.department,
         position: employee.position,
-        mustChangePassword: !!employee.mustChangePassword,
+        mustChangePassword: employee.mustChangePassword,
       },
     });
 

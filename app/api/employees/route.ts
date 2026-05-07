@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { sendCredentialsEmail } from "@/lib/email";
-interface EmployeeRow {
-  id: number;
-  fullName: string;
-  email: string;
-  phone: string | null;
-  department: string | null;
-  position: string | null;
-  role: string;
-  leaveBalance: number;
-  status: string;
-  createdAt: string;
-}
 
-/** GET /api/employees — admin only */
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -25,14 +12,25 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
   if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  const [rows] = await db.execute<EmployeeRow[]>(
-    "SELECT id, fullName, email, phone, department, position, role, leaveBalance, status, createdAt FROM Employee ORDER BY id"
-  );
+  const employees = await prisma.employee.findMany({
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      department: true,
+      position: true,
+      role: true,
+      leaveBalance: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
 
-  return NextResponse.json({ employees: rows });
+  return NextResponse.json({ employees });
 }
 
-/** POST /api/employees — create employee (admin only), auto-generate password & send email */
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -47,51 +45,51 @@ export async function POST(req: NextRequest) {
 
   const emailAddr = body.email.trim().toLowerCase();
 
-  // Validate email format
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddr)) {
     return NextResponse.json({ error: "Invalid email format." }, { status: 400 });
   }
 
-  // Check duplicate email
-  const [existing] = await db.execute<any[]>(
-    "SELECT id FROM Employee WHERE email = ?",
-    [emailAddr]
-  );
-  if ((existing as any[]).length > 0) {
-    return NextResponse.json({ error: "An employee with this email already exists." }, { status: 409 });
+  const existing = await prisma.employee.findUnique({
+    where: { email: emailAddr },
+    select: { id: true },
+  });
+  if (existing) {
+    return NextResponse.json(
+      { error: "An employee with this email already exists." },
+      { status: 409 }
+    );
   }
 
-  // Generate random password
   const randomPassword = crypto.randomBytes(4).toString("hex") + "A1!";
   const passwordHash = await bcrypt.hash(randomPassword, 12);
 
-  const [result] = await db.execute<any>(
-    `INSERT INTO Employee (fullName, email, phone, department, position, role, passwordHash, leaveBalance, mustChangePassword, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    [
-      body.fullName.trim(),
-      emailAddr,
-      body.phone?.trim() || null,
-      body.department?.trim() || null,
-      body.position?.trim() || null,
-      body.role || "employee",
+  const employee = await prisma.employee.create({
+    data: {
+      fullName: body.fullName.trim(),
+      email: emailAddr,
+      phone: body.phone?.trim() || null,
+      department: body.department?.trim() || null,
+      position: body.position?.trim() || null,
+      role: body.role || "employee",
       passwordHash,
-      body.leaveBalance ?? 18,
-      true,
-      "active",
-    ]
-  );
+      leaveBalance: body.leaveBalance ?? 18,
+      mustChangePassword: true,
+      status: "active",
+    },
+  });
 
-  // Send credentials email (non-blocking)
   sendCredentialsEmail({
     email: emailAddr,
     fullName: body.fullName.trim(),
     password: randomPassword,
   }).catch(() => {});
 
-  return NextResponse.json({
-    id: result.insertId,
-    message: "Employee created. Login credentials have been sent via email.",
-    generatedPassword: randomPassword,
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      id: employee.id,
+      message: "Employee created. Login credentials have been sent via email.",
+      generatedPassword: randomPassword,
+    },
+    { status: 201 }
+  );
 }

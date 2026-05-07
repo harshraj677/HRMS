@@ -3,94 +3,93 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Employee {
-  id               Int            @id @default(autoincrement())
-  fullName         String
-  email            String         @unique
-  phone            String?
-  department       String?
-  position         String?
-  role             String         @default("employee")
-  passwordHash     String
-  leaveBalance     Int            @default(18)
-  mustChangePassword Boolean      @default(false)
-  status           String         @default("active")
-  createdAt        DateTime       @default(now())
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  fullName           String
+  email              String          @unique
+  phone              String?
+  department         String?
+  position           String?
+  role               String          @default("employee")
+  passwordHash       String
+  leaveBalance       Int             @default(18)
+  mustChangePassword Boolean         @default(false)
+  status             String          @default("active")
+  createdAt          DateTime        @default(now())
 
-  attendance       Attendance[]
-  leaveRequests    LeaveRequest[]
-  loginHistory     LoginHistory[]
-  suspiciousLogs   SuspiciousLog[]
+  attendance         Attendance[]
+  leaveRequests      LeaveRequest[]
+  loginHistory       LoginHistory[]
+  suspiciousLogs     SuspiciousLog[]
 }
 
 model Attendance {
-  id           Int       @id @default(autoincrement())
-  employeeId   Int
-  date         DateTime  @db.Date
-  checkIn      DateTime?
-  checkOut     DateTime?
-  hours        Float?
-  status       String    @default("present")
-  latitude     Float?
-  longitude    Float?
-  ipAddress    String?
-  device       String?
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId         String    @db.ObjectId
+  date               DateTime
+  checkIn            DateTime?
+  checkOut           DateTime?
+  hours              Float?
+  status             String    @default("present")
+  latitude           Float?
+  longitude          Float?
+  ipAddress          String?
+  device             String?
   distanceFromOffice Float?
-  createdAt    DateTime  @default(now())
+  createdAt          DateTime  @default(now())
 
-  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee           Employee  @relation(fields: [employeeId], references: [id])
 
   @@unique([employeeId, date])
 }
 
 model LeaveRequest {
-  id         Int      @id @default(autoincrement())
-  employeeId Int
-  startDate  DateTime @db.Date
-  endDate    DateTime @db.Date
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId String   @db.ObjectId
+  startDate  DateTime
+  endDate    DateTime
   days       Int      @default(1)
-  reason     String   @db.Text
+  reason     String
   status     String   @default("pending")
-  approvedBy Int?
+  approvedBy String?
   createdAt  DateTime @default(now())
 
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model LoginHistory {
-  id         Int      @id @default(autoincrement())
-  employeeId Int
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId String   @db.ObjectId
   ipAddress  String?
   device     String?
   browser    String?
   loginTime  DateTime @default(now())
   success    Boolean  @default(true)
 
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model SuspiciousLog {
-  id          Int      @id @default(autoincrement())
-  employeeId  Int
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId  String   @db.ObjectId
   type        String
-  description String   @db.Text
+  description String
   ipAddress   String?
   createdAt   DateTime @default(now())
 
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [employeeId], references: [id])
 }
 
 model Department {
-  id   Int    @id @default(autoincrement())
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
   name String
 }
 
 model Role {
-  id   Int    @id @default(autoincrement())
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
   name String
 }

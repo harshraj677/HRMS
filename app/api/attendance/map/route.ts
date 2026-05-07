@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-/** GET /api/attendance/map — admin: today's check-in locations for all employees */
+
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -9,16 +9,29 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
   if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const [rows] = await db.execute<any[]>(
-    `SELECT a.id, a.employeeId, e.fullName, a.latitude, a.longitude, a.checkIn, a.distanceFromOffice
-     FROM Attendance a
-     JOIN Employee e ON e.id = a.employeeId
-     WHERE a.date = ? AND a.latitude IS NOT NULL AND a.longitude IS NOT NULL
-     ORDER BY a.checkIn DESC`,
-    [todayStr]
+  const todayDate = new Date(
+    new Date().toISOString().slice(0, 10) + "T00:00:00.000Z"
   );
 
-  return NextResponse.json({ markers: rows });
+  const records = await prisma.attendance.findMany({
+    where: {
+      date: todayDate,
+      latitude: { not: null },
+      longitude: { not: null },
+    },
+    include: { employee: { select: { fullName: true } } },
+    orderBy: { checkIn: "desc" },
+  });
+
+  const markers = records.map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    fullName: r.employee.fullName,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    checkIn: r.checkIn,
+    distanceFromOffice: r.distanceFromOffice,
+  }));
+
+  return NextResponse.json({ markers });
 }

@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-/** GET /api/attendance/today — returns current user's today attendance */
+
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const [rows] = await db.execute<any[]>(
-    "SELECT id, checkIn, checkOut, hours, status, latitude, longitude, distanceFromOffice FROM Attendance WHERE employeeId = ? AND date = ?",
-    [payload.id, todayStr]
+  const todayDate = new Date(
+    new Date().toISOString().slice(0, 10) + "T00:00:00.000Z"
   );
 
-  const record = (rows as any[])[0];
+  const record = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId: payload.id, date: todayDate } },
+  });
 
   if (!record) {
-    return NextResponse.json({ checkIn: null, checkOut: null, hours: null, status: "not-checked-in", distanceFromOffice: null });
+    return NextResponse.json({
+      checkIn: null,
+      checkOut: null,
+      hours: null,
+      status: "not-checked-in",
+      distanceFromOffice: null,
+    });
   }
 
   let currentStatus = record.status || "not-checked-in";
@@ -27,11 +32,11 @@ export async function GET(req: NextRequest) {
     else if (record.checkIn && record.checkOut) currentStatus = "completed";
   }
 
-  // Compute live hours if still checked in
   let hours = record.hours;
   if (record.checkIn && !record.checkOut) {
-    const checkInTime = new Date(record.checkIn);
-    hours = parseFloat(((Date.now() - checkInTime.getTime()) / (1000 * 60 * 60)).toFixed(1));
+    hours = parseFloat(
+      ((Date.now() - record.checkIn.getTime()) / (1000 * 60 * 60)).toFixed(1)
+    );
   }
 
   return NextResponse.json({

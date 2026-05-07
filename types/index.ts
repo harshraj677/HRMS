@@ -3,7 +3,7 @@
 export type UserRole = "admin" | "employee";
 
 export interface User {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   role: UserRole;
@@ -19,7 +19,7 @@ export interface User {
 // ─── Employee ────────────────────────────────────────────────────────────────
 
 export interface Employee {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   phone: string | null;
@@ -36,8 +36,8 @@ export interface Employee {
 export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "on-leave" | "not-checked-in";
 
 export interface AttendanceRecord {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   date: string;
   checkIn: string | null;
   checkOut: string | null;
@@ -63,14 +63,14 @@ export interface TodayAttendance {
 export type LeaveStatus = "pending" | "approved" | "rejected";
 
 export interface LeaveRequest {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   startDate: string;
   endDate: string;
   days: number;
   reason: string;
   status: LeaveStatus;
-  approvedBy: number | null;
+  approvedBy: string | null;
   createdAt: string;
   fullName?: string;
   department?: string | null;
@@ -107,8 +107,8 @@ export interface DepartmentAttendanceData {
 // ─── Login History ────────────────────────────────────────────────────────────
 
 export interface LoginHistoryEntry {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   ipAddress: string | null;
   device: string | null;
   browser: string | null;
@@ -120,8 +120,8 @@ export interface LoginHistoryEntry {
 // ─── Suspicious Log ──────────────────────────────────────────────────────────
 
 export interface SuspiciousLogEntry {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   type: string;
   description: string;
   ipAddress: string | null;
@@ -132,8 +132,8 @@ export interface SuspiciousLogEntry {
 // ─── Attendance Map Marker ────────────────────────────────────────────────────
 
 export interface AttendanceMapMarker {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   fullName: string;
   latitude: number;
   longitude: number;

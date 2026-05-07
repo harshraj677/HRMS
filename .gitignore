@@ -28,3 +28,5 @@ Thumbs.db
 
 # Claude memory
 .claude/
+
+.vercel
