@@ -15,7 +15,6 @@ import {
   UserCircle,
   ClipboardList,
   Sparkles,
-  X,
   MapPin,
   FileText,
 } from "lucide-react";
@@ -81,12 +80,7 @@ function getNavItems(role: string) {
   ];
 }
 
-interface SidebarProps {
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
-}
-
-export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -99,8 +93,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     router.push("/login");
   };
 
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
+  return (
+    <aside
+      className={cn(
+        "hidden lg:flex flex-col fixed left-0 top-0 h-full bg-slate-900 border-r border-white/5 z-30 overflow-hidden transition-[width] duration-200 ease-in-out",
+        collapsed ? "w-16" : "w-60"
+      )}
+    >
       {/* Logo */}
       <div className={cn(
         "flex items-center gap-3 px-4 py-5 border-b border-white/10",
@@ -114,11 +113,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <p className="font-bold text-white text-sm leading-tight whitespace-nowrap">Anvesana</p>
             <p className="text-[10px] text-slate-400 whitespace-nowrap">Innovation & Entrepreneurial</p>
           </div>
-        )}
-        {onMobileClose && (
-          <button onClick={onMobileClose} className="ml-auto text-slate-400 hover:text-white lg:hidden">
-            <X className="w-5 h-5" />
-          </button>
         )}
       </div>
 
@@ -140,7 +134,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 return collapsed ? (
                   <Tooltip key={item.href}>
                     <TooltipTrigger asChild>
-                      <Link href={item.href} onClick={onMobileClose}>
+                      <Link href={item.href}>
                         <div className={cn(
                           "flex items-center justify-center w-10 h-10 mx-auto rounded-xl mb-1 transition-colors duration-150",
                           isActive
@@ -154,7 +148,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     <TooltipContent side="right">{item.label}</TooltipContent>
                   </Tooltip>
                 ) : (
-                  <Link key={item.href} href={item.href} onClick={onMobileClose}>
+                  <Link key={item.href} href={item.href}>
                     <div className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
                       isActive
@@ -193,6 +187,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           )}
           {!collapsed && (
             <button
+              type="button"
+              aria-label="Sign out"
               onClick={handleLogout}
               className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-400"
             >
@@ -202,42 +198,17 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </div>
 
         <button
+          type="button"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors",
+            "flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors",
             collapsed ? "mt-1 mx-auto" : "ml-auto mt-1"
           )}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
-    </div>
-  );
-
-  return (
-    <>
-      {/* Desktop Sidebar — CSS transition for collapse */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col fixed left-0 top-0 h-full bg-slate-900 border-r border-white/5 z-30 overflow-hidden transition-[width] duration-200 ease-in-out",
-          collapsed ? "w-16" : "w-60"
-        )}
-      >
-        {sidebarContent}
-      </aside>
-
-      {/* Mobile Sidebar — CSS transition */}
-      {mobileOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-150"
-            onClick={onMobileClose}
-          />
-          <aside className="fixed left-0 top-0 h-full w-[260px] bg-slate-900 border-r border-white/5 z-50 flex flex-col lg:hidden animate-in slide-in-from-left duration-200">
-            {sidebarContent}
-          </aside>
-        </>
-      )}
-    </>
+    </aside>
   );
 }

@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
+  devIndicators: false,
   serverExternalPackages: ["bcrypt"],
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "framer-motion", "@radix-ui/react-avatar", "@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu"],

@@ -12,18 +12,59 @@ import {
   AlertTriangle,
   CalendarDays,
   Timer,
+  CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useLeaveRequests, useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
 import { useTodayAttendance, useCheckIn, useCheckOut } from "@/hooks/useAttendance";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return { text: "Good morning", emoji: "☀️" };
+  if (h < 17) return { text: "Good afternoon", emoji: "🌤️" };
+  return { text: "Good evening", emoji: "🌙" };
+}
+
+const colorTokens: Record<string, { icon: string; gradient: string; border: string; label: string }> = {
+  indigo: {
+    icon: "bg-indigo-100 text-indigo-600",
+    gradient: "from-indigo-50 to-indigo-50/40",
+    border: "border-indigo-100",
+    label: "text-indigo-600",
+  },
+  emerald: {
+    icon: "bg-emerald-100 text-emerald-600",
+    gradient: "from-emerald-50 to-emerald-50/40",
+    border: "border-emerald-100",
+    label: "text-emerald-600",
+  },
+  amber: {
+    icon: "bg-amber-100 text-amber-600",
+    gradient: "from-amber-50 to-amber-50/40",
+    border: "border-amber-100",
+    label: "text-amber-600",
+  },
+  violet: {
+    icon: "bg-violet-100 text-violet-600",
+    gradient: "from-violet-50 to-violet-50/40",
+    border: "border-violet-100",
+    label: "text-violet-600",
+  },
+  rose: {
+    icon: "bg-rose-100 text-rose-600",
+    gradient: "from-rose-50 to-rose-50/40",
+    border: "border-rose-100",
+    label: "text-rose-600",
+  },
+};
 
 export default function DashboardPage() {
   const { data: user } = useAuth();
@@ -37,261 +78,389 @@ export default function DashboardPage() {
 
   const isAdmin = user?.role === "admin";
   const pendingLeaves = leaveRequests?.filter((l: any) => l.status === "pending") ?? [];
-  const today = format(new Date(), "EEEE, MMMM d, yyyy");
+  const today = format(new Date(), "EEEE, MMMM d");
   const firstName = user?.fullName?.split(" ")[0] ?? "";
+  const { text: greetText, emoji } = getGreeting();
 
   const hasCheckedIn = !!todayAttendance?.checkIn;
   const hasCheckedOut = !!todayAttendance?.checkOut;
 
+  const fmtTime = (iso?: string | null) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const adminCards = stats
+    ? [
+        { title: "Total Employees", value: stats.totalEmployees, subtitle: "Active members", icon: Users, color: "indigo" },
+        { title: "Present Today", value: stats.presentToday, subtitle: `${stats.percentPresent}% attendance`, icon: CalendarCheck, color: "emerald" },
+        { title: "Late Today", value: stats.lateToday ?? 0, subtitle: "After 9:30 AM", icon: AlertTriangle, color: "amber" },
+        { title: "On Leave", value: stats.onLeave, subtitle: "Approved absences", icon: UserX, color: "violet" },
+        { title: "Pending Requests", value: stats.pendingLeaveRequests, subtitle: "Awaiting approval", icon: ClipboardList, color: "rose" },
+      ]
+    : [];
+
+  const employeeCards = stats
+    ? [
+        { title: "Monthly Attendance", value: `${(stats as any).monthlyAttendance ?? 0}d`, subtitle: "Days checked in", icon: CalendarCheck, color: "emerald" },
+        { title: "Late Arrivals", value: (stats as any).monthlyLate ?? 0, subtitle: "This month", icon: Timer, color: "amber" },
+        { title: "Leave Balance", value: `${(stats as any).leaveBalance ?? 0}d`, subtitle: "Days remaining", icon: CalendarDays, color: "indigo" },
+        { title: "Pending Requests", value: (stats as any).pendingRequests ?? 0, subtitle: "Awaiting review", icon: ClipboardList, color: "rose" },
+      ]
+    : [];
+
+  const cards = isAdmin ? adminCards : employeeCards;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {firstName}!
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">{today}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isAdmin && pendingLeaves.length > 0 && (
-            <Button variant="outline" size="sm" className="rounded-xl" asChild>
-              <Link href="/dashboard/leave">
-                <Bell className="w-4 h-4" />
-                <Badge className="ml-1 text-[10px] px-1.5 py-0 bg-indigo-600">{pendingLeaves.length}</Badge>
-                Pending Leaves
-              </Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <Button size="sm" className="rounded-xl bg-indigo-600 hover:bg-indigo-700" asChild>
-              <Link href="/dashboard/employees">
-                <Users className="w-4 h-4" /> View Team
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* ── Hero banner ──────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-500 p-6 text-white shadow-lg shadow-indigo-500/25"
+      >
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-violet-400/20 blur-2xl pointer-events-none" />
 
-      {/* Quick Attendance Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center",
-              hasCheckedIn && !hasCheckedOut ? "bg-emerald-50" : hasCheckedOut ? "bg-blue-50" : "bg-slate-50"
-            )}>
-              <Clock className={cn(
-                "w-5 h-5",
-                hasCheckedIn && !hasCheckedOut ? "text-emerald-600" : hasCheckedOut ? "text-blue-600" : "text-slate-400"
-              )} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-indigo-200 bg-white/10 px-2.5 py-0.5 rounded-full">
+                {today}
+              </span>
             </div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {emoji} {greetText}, {firstName}!
+            </h1>
+            <p className="text-indigo-200 text-sm mt-1">
+              {isAdmin
+                ? "Here's your workforce overview for today."
+                : "Here's your personal activity summary."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin && pendingLeaves.length > 0 && (
+              <Link href="/dashboard/leave">
+                <div className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer active:scale-95">
+                  <Bell className="w-4 h-4" />
+                  <span>{pendingLeaves.length} pending</span>
+                </div>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/dashboard/employees">
+                <div className="flex items-center gap-2 bg-white text-indigo-700 rounded-xl px-3.5 py-2 text-sm font-semibold hover:bg-indigo-50 transition-colors cursor-pointer shadow-sm active:scale-95">
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">View Team</span>
+                </div>
+              </Link>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Quick attendance card ─────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.06 }}
+        className={cn(
+          "relative overflow-hidden rounded-2xl border p-5 transition-colors",
+          !hasCheckedIn && "bg-white border-slate-100 shadow-sm",
+          hasCheckedIn && !hasCheckedOut && "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100",
+          hasCheckedOut && "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100"
+        )}
+      >
+        {hasCheckedIn && !hasCheckedOut && (
+          <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-300/15 rounded-full -translate-y-12 translate-x-12 blur-2xl pointer-events-none" />
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                !hasCheckedIn && "bg-slate-100",
+                hasCheckedIn && !hasCheckedOut && "bg-emerald-100",
+                hasCheckedOut && "bg-blue-100"
+              )}
+            >
+              {hasCheckedIn && !hasCheckedOut ? (
+                <div className="relative flex items-center justify-center w-3 h-3">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <div className="absolute w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+                </div>
+              ) : hasCheckedOut ? (
+                <CheckCircle className="w-6 h-6 text-blue-600" />
+              ) : (
+                <Clock className="w-6 h-6 text-slate-400" />
+              )}
+            </div>
+
             <div>
-              <p className="text-sm font-semibold text-slate-800">
-                {!hasCheckedIn ? "Not checked in yet" : hasCheckedOut ? "Day complete" : "Currently working"}
+              <p
+                className={cn(
+                  "font-semibold text-base",
+                  !hasCheckedIn && "text-slate-700",
+                  hasCheckedIn && !hasCheckedOut && "text-emerald-800",
+                  hasCheckedOut && "text-blue-800"
+                )}
+              >
+                {!hasCheckedIn
+                  ? "Not checked in yet"
+                  : hasCheckedOut
+                  ? "Day complete — great work!"
+                  : "You're clocked in"}
               </p>
-              <p className="text-xs text-slate-400">
-                {todayAttendance?.checkIn && `In: ${new Date(todayAttendance.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-                {todayAttendance?.checkOut && ` — Out: ${new Date(todayAttendance.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-                {todayAttendance?.hours != null && ` — ${todayAttendance.hours}h`}
+              <p className="text-xs text-slate-500 mt-0.5">
+                {fmtTime(todayAttendance?.checkIn)
+                  ? `In: ${fmtTime(todayAttendance?.checkIn)}`
+                  : "Location will be verified on check-in"}
+                {fmtTime(todayAttendance?.checkOut) && ` · Out: ${fmtTime(todayAttendance?.checkOut)}`}
+                {todayAttendance?.hours != null && ` · ${todayAttendance.hours}h worked`}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
               disabled={hasCheckedIn || checkIn.isPending}
               onClick={() => checkIn.mutate()}
+              className={cn(
+                "flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold transition-all",
+                "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25",
+                "hover:bg-emerald-700 active:scale-[0.97]",
+                "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+              )}
             >
               {checkIn.isPending ? (
-                <><Clock className="w-4 h-4 animate-spin" /> Getting location...</>
+                <>
+                  <Clock className="w-4 h-4 animate-spin" /> Locating…
+                </>
               ) : (
-                <><LogIn className="w-4 h-4" /> Check In</>
+                <>
+                  <LogIn className="w-4 h-4" /> Check In
+                </>
               )}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-xl"
+            </button>
+            <button
+              type="button"
               disabled={!hasCheckedIn || hasCheckedOut || checkOut.isPending}
               onClick={() => checkOut.mutate()}
+              className={cn(
+                "flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold border transition-all",
+                "bg-white border-slate-200 text-slate-700",
+                "hover:bg-slate-50 active:scale-[0.97]",
+                "disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              )}
             >
               Check Out
-            </Button>
+            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Admin Stats Grid */}
-      {isAdmin && (
-        statsLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border p-6">
-                <Skeleton className="h-4 w-28 mb-3" />
-                <Skeleton className="h-8 w-16 mb-2" />
-                <Skeleton className="h-3 w-36" />
-              </div>
-            ))}
-          </div>
-        ) : stats ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            {[
-              { title: "Total Employees", value: stats.totalEmployees, subtitle: "Active team members", icon: Users, color: "indigo" },
-              { title: "Present Today", value: stats.presentToday, subtitle: `${stats.percentPresent}% attendance`, icon: CalendarCheck, color: "emerald" },
-              { title: "Late Today", value: stats.lateToday ?? 0, subtitle: "Arrived after 9:30 AM", icon: AlertTriangle, color: "amber" },
-              { title: "On Leave", value: stats.onLeave, subtitle: "Approved absences", icon: UserX, color: "violet" },
-              { title: "Pending Requests", value: stats.pendingLeaveRequests, subtitle: "Awaiting approval", icon: ClipboardList, color: "rose" },
-            ].map((card) => {
-              const Icon = card.icon;
-              const colorMap: Record<string, string> = {
-                indigo: "bg-indigo-50 text-indigo-600",
-                emerald: "bg-emerald-50 text-emerald-600",
-                amber: "bg-amber-50 text-amber-600",
-                violet: "bg-violet-50 text-violet-600",
-                rose: "bg-rose-50 text-rose-600",
-              };
-              return (
-                <div key={card.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", colorMap[card.color])}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-                  <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-                </div>
-              );
-            })}
-          </div>
-        ) : null
-      )}
-
-      {/* Employee Personal Stats */}
-      {!isAdmin && stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[
-            { title: "This Month Attendance", value: (stats as any).monthlyAttendance ?? 0, subtitle: "Days checked in", icon: CalendarCheck, color: "emerald" },
-            { title: "Late This Month", value: (stats as any).monthlyLate ?? 0, subtitle: "After 9:30 AM", icon: Timer, color: "amber" },
-            { title: "Leave Balance", value: (stats as any).leaveBalance ?? 0, subtitle: "Days remaining", icon: CalendarDays, color: "indigo" },
-            { title: "Pending Requests", value: (stats as any).pendingRequests ?? 0, subtitle: "Awaiting approval", icon: ClipboardList, color: "rose" },
-          ].map((card) => {
+      {/* ── KPI stat cards ────────────────────────────────────────── */}
+      {statsLoading ? (
+        <div
+          className={cn(
+            "grid gap-3 sm:gap-4",
+            isAdmin ? "grid-cols-2 xl:grid-cols-5" : "grid-cols-2 xl:grid-cols-4"
+          )}
+        >
+          {[...Array(isAdmin ? 5 : 4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5">
+              <Skeleton className="h-9 w-9 rounded-xl mb-3" />
+              <Skeleton className="h-7 w-12 mb-2" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+      ) : cards.length > 0 ? (
+        <div
+          className={cn(
+            "grid gap-3 sm:gap-4",
+            isAdmin ? "grid-cols-2 xl:grid-cols-5" : "grid-cols-2 xl:grid-cols-4"
+          )}
+        >
+          {cards.map((card, idx) => {
             const Icon = card.icon;
-            const colorMap: Record<string, string> = {
-              emerald: "bg-emerald-50 text-emerald-600",
-              amber: "bg-amber-50 text-amber-600",
-              indigo: "bg-indigo-50 text-indigo-600",
-              rose: "bg-rose-50 text-rose-600",
-            };
+            const tok = colorTokens[card.color];
             return (
-              <div key={card.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", colorMap[card.color])}>
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.12 + idx * 0.06 }}
+                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+                className={cn(
+                  "relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 cursor-default",
+                  tok.gradient,
+                  tok.border
+                )}
+              >
+                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", tok.icon)}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-                <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
+                <p className="text-2xl font-bold text-slate-900 leading-none">{card.value}</p>
+                <p className="text-xs text-slate-500 mt-1.5 leading-snug">{card.subtitle}</p>
+                <p className={cn("text-[10px] font-semibold uppercase tracking-widest mt-2", tok.label)}>
+                  {card.title}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* ── Admin: pending leave requests ────────────────────────── */}
+      {isAdmin && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.32 }}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">Pending Leave Requests</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Requires your approval</p>
+            </div>
+            <Link
+              href="/dashboard/leave"
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+            >
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="divide-y divide-slate-50">
+            {pendingLeaves.length === 0 ? (
+              <div className="flex flex-col items-center py-12">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
+                  <CheckCircle className="w-6 h-6 text-emerald-500" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">All caught up!</p>
+                <p className="text-xs text-slate-400 mt-0.5">No pending leave requests</p>
               </div>
+            ) : (
+              pendingLeaves.slice(0, 5).map((leave: any, i: number) => (
+                <motion.div
+                  key={leave.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/70 transition-colors"
+                >
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leave.fullName}`}
+                    />
+                    <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
+                      {leave.fullName?.split(" ").map((n: string) => n[0]).join("") ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">{leave.fullName}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatDate(leave.startDate)} → {formatDate(leave.endDate)} ·{" "}
+                      <span className="text-indigo-600 font-medium">{leave.days}d</span>
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-slate-400 hidden sm:block max-w-[110px] truncate italic">
+                    {leave.reason}
+                  </p>
+
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      className="h-7 px-3 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+                      disabled={approveLeave.isPending}
+                      onClick={() => approveLeave.mutate(leave.id)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="h-7 px-3 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 active:scale-95 transition-all disabled:opacity-50"
+                      disabled={rejectLeave.isPending}
+                      onClick={() => rejectLeave.mutate(leave.id)}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Employee: quick links ────────────────────────────────── */}
+      {!isAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            {
+              href: "/dashboard/attendance",
+              icon: CalendarCheck,
+              color: "indigo",
+              title: "My Attendance",
+              desc: "View & track your check-ins",
+            },
+            {
+              href: "/dashboard/leave",
+              icon: ClipboardList,
+              color: "violet",
+              title: "Leave Requests",
+              desc: "Apply & track time off",
+            },
+          ].map((item, idx) => {
+            const Icon = item.icon;
+            const tok = colorTokens[item.color];
+            return (
+              <motion.div
+                key={item.href}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + idx * 0.06 }}
+                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+              >
+                <Link href={item.href}>
+                  <div className="group flex items-center gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-slate-200 transition-all cursor-pointer">
+                    <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", tok.icon)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">{item.title}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{item.desc}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </Link>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Pending Leave Requests (admin only) */}
-      {isAdmin && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Pending Leave Requests</h3>
-              <p className="text-sm text-slate-400">Requires your approval</p>
-            </div>
-            <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 text-xs" asChild>
-              <Link href="/dashboard/leave">
-                View All <ArrowRight className="w-3 h-3 ml-1" />
-              </Link>
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {pendingLeaves.length === 0 ? (
-              <div className="text-center py-8 text-sm text-slate-400">
-                No pending leave requests
-              </div>
-            ) : (
-              pendingLeaves.slice(0, 5).map((leave: any) => (
-                <div
-                  key={leave.id}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leave.fullName}`} />
-                    <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
-                      {leave.fullName?.split(" ").map((n: string) => n[0]).join("") ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800">{leave.fullName}</p>
-                    <p className="text-xs text-slate-400">
-                      {formatDate(leave.startDate)} → {formatDate(leave.endDate)} · {leave.days}d
-                    </p>
-                  </div>
-                  <p className="text-xs text-slate-500 hidden sm:block max-w-[120px] truncate">{leave.reason}</p>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      className="h-7 px-3 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
-                      disabled={approveLeave.isPending}
-                      onClick={() => approveLeave.mutate(leave.id)}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-3 text-xs rounded-lg text-red-600 border-red-200 hover:bg-red-50"
-                      disabled={rejectLeave.isPending}
-                      onClick={() => rejectLeave.mutate(leave.id)}
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Employee quick links */}
+      {/* ── Employee: inspirational footer ──────────────────────── */}
       {!isAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link href="/dashboard/attendance">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                  <CalendarCheck className="w-5 h-5 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">My Attendance</p>
-                  <p className="text-xs text-slate-400">View attendance history</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 ml-auto" />
-              </div>
-            </div>
-          </Link>
-          <Link href="/dashboard/leave">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5 text-violet-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">My Leave Requests</p>
-                  <p className="text-xs text-slate-400">Apply & track leave</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 ml-auto" />
-              </div>
-            </div>
-          </Link>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex items-center gap-2 px-1"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <p className="text-xs text-slate-400">
+            Powered by <span className="font-semibold text-indigo-500">Anvesana</span> — Innovation & Entrepreneurial Forum
+          </p>
+        </motion.div>
       )}
     </div>
   );

@@ -6,18 +6,17 @@ import { motion } from "framer-motion";
 import {
   Bell,
   Search,
-  Menu,
   ChevronDown,
   User,
   Settings,
   LogOut,
   HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,11 +40,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard/settings": { title: "Settings", description: "Configure your preferences" },
 };
 
-interface TopNavProps {
-  onMobileMenuOpen: () => void;
-}
-
-export function TopNav({ onMobileMenuOpen }: TopNavProps) {
+export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useAuth();
@@ -64,26 +59,23 @@ export function TopNav({ onMobileMenuOpen }: TopNavProps) {
 
   return (
     <header className="sticky top-0 z-20 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center px-4 lg:px-6 gap-4">
-      {/* Mobile Menu Toggle */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="lg:hidden shrink-0"
-        onClick={onMobileMenuOpen}
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
+      {/* Mobile: Brand logo */}
+      <div className="flex items-center gap-2 lg:hidden no-select">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+        <span className="font-bold text-slate-900 text-sm tracking-tight">Anvesana</span>
+      </div>
 
-      {/* Page Title - Hidden on mobile */}
-      <div className="hidden sm:block">
+      {/* Desktop: Page title */}
+      <div className="hidden lg:block">
         <h1 className="text-base font-semibold text-slate-900">{pageInfo.title}</h1>
         <p className="text-xs text-slate-500">{pageInfo.description}</p>
       </div>
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Search */}
+      {/* Search (desktop only) */}
       <div className="relative hidden md:block">
         <motion.div
           animate={{ width: searchFocused ? 280 : 200 }}
@@ -102,7 +94,7 @@ export function TopNav({ onMobileMenuOpen }: TopNavProps) {
       {/* Notifications */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" className="relative shrink-0">
+          <Button variant="ghost" size="icon-sm" className="relative shrink-0 min-w-[44px] min-h-[44px]">
             <Bell className="w-5 h-5 text-slate-600" />
             <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] flex items-center justify-center font-bold">
               3
@@ -136,8 +128,11 @@ export function TopNav({ onMobileMenuOpen }: TopNavProps) {
       {/* User Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 h-9 px-2 hover:bg-slate-100 rounded-xl">
-            <Avatar className="h-7 w-7">
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 h-11 px-2 hover:bg-slate-100 rounded-xl min-w-[44px]"
+          >
+            <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.fullName ?? "User"}`} />
               <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">{initials}</AvatarFallback>
             </Avatar>

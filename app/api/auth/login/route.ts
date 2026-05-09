@@ -118,8 +118,19 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (err) {
     console.error("[auth/login]", err);
+    const msg = err instanceof Error ? err.message : "";
+    const isDbDown =
+      msg.includes("Server selection timeout") ||
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("InternalError") ||
+      msg.includes("tls") ||
+      msg.includes("SSL");
     return NextResponse.json(
-      { error: "An internal error occurred. Please try again." },
+      {
+        error: isDbDown
+          ? "Database is temporarily unavailable. Please try again in a few minutes."
+          : "An internal error occurred. Please try again.",
+      },
       { status: 500 }
     );
   }

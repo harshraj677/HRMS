@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
-  if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+
+  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
+  if (!caller || caller.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const employees = await prisma.employee.findMany({
     select: {
@@ -36,7 +38,9 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
-  if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+
+  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
+  if (!caller || caller.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   if (!body?.fullName || !body?.email) {

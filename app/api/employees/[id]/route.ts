@@ -9,8 +9,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const { id } = await params;
+  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
 
-  if (payload.role !== "admin" && payload.id !== id) {
+  if (!caller || (caller.role !== "admin" && payload.id !== id)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
@@ -39,9 +40,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
-  if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const { id } = await params;
+  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
+  if (!caller || caller.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   if (id === payload.id) {
     return NextResponse.json({ error: "Cannot delete your own account." }, { status: 400 });
@@ -67,8 +69,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const { id } = await params;
+  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
 
-  if (payload.role !== "admin" && payload.id !== id) {
+  if (!caller || (caller.role !== "admin" && payload.id !== id)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
@@ -80,7 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.fullName) data.fullName = body.fullName.trim();
   if (body.phone !== undefined) data.phone = body.phone?.trim() || null;
 
-  if (payload.role === "admin") {
+  if (caller.role === "admin") {
     if (body.email) data.email = body.email.trim().toLowerCase();
     if (body.department !== undefined) data.department = body.department?.trim() || null;
     if (body.position !== undefined) data.position = body.position?.trim() || null;

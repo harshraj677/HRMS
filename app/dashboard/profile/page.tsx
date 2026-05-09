@@ -76,12 +76,17 @@ export default function ProfilePage() {
       {/* Profile Card */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {/* Banner */}
-        <div className="h-28 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600" />
+        <div className="relative h-32 bg-gradient-to-r from-indigo-600 via-violet-500 to-purple-600 overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-violet-400/20 blur-xl" />
+          </div>
+        </div>
 
         <div className="px-6 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-14">
             <Avatar className="h-24 w-24 ring-4 ring-white shadow-xl">
-              <AvatarFallback className="text-2xl bg-indigo-100 text-indigo-700 font-bold">
+              <AvatarFallback className="text-2xl bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 font-bold">
                 {getInitials(employee.fullName)}
               </AvatarFallback>
             </Avatar>
