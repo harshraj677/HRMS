@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -55,8 +56,18 @@ export default function AttendancePage() {
   const checkIn  = useCheckIn();
   const checkOut = useCheckOut();
 
-  const currentTime = format(new Date(), "hh:mm a");
-  const currentDate = format(new Date(), "EEEE, MMMM d, yyyy");
+  const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setNow(new Date());
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentTime = now ? format(now, "hh:mm a") : "--:-- --";
+  const currentDate = now ? format(now, "EEEE, MMMM d, yyyy") : "Loading date...";
 
   const hasCheckedIn  = !!today?.checkIn;
   const hasCheckedOut = !!today?.checkOut;
