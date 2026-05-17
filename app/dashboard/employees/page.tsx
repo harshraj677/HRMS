@@ -429,7 +429,7 @@ export default function EmployeesPage() {
                             <Eye className="w-4 h-4" /> View Profile
                           </Link>
                         </DropdownMenuItem>
-                        {isAdmin && emp.id !== user?.id && (
+                        {isAdmin && String(emp.id) !== String(user?.id) && (
                           <DropdownMenuItem
                             className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                             onClick={() => setDeleteTarget(emp)}
@@ -532,7 +532,7 @@ export default function EmployeesPage() {
                                 <Eye className="w-4 h-4" /> View Profile
                               </Link>
                             </DropdownMenuItem>
-                            {isAdmin && emp.id !== user?.id && (
+                            {isAdmin && String(emp.id) !== String(user?.id) && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                                 onClick={() => setDeleteTarget(emp)}

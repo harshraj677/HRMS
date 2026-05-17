@@ -1,41 +1,57 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Dev Server",
-      "type": "shell",
-      "command": "npm run dev",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Build",
-      "type": "shell",
-      "command": "npm run build",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Lint",
-      "type": "shell",
-      "command": "npm run lint",
-      "group": "test",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Dev Server",
+			"type": "shell",
+			"command": "npm run dev",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Lint",
+			"type": "shell",
+			"command": "npm run lint",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "test-build",
+			"type": "shell",
+			"command": "node test-build.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "test-push",
+			"type": "shell",
+			"command": "node test-push.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
 }

@@ -50,7 +50,7 @@ export async function createArchive(params: {
     data: {
       sourceTable: params.sourceTable,
       sourceId: params.sourceId,
-      snapshot: sanitized,
+      snapshot: sanitized as any,
       archivedBy: params.archivedBy,
     },
   });
@@ -66,5 +66,5 @@ export async function createAuditLog(params: {
   ip?: string;
   userAgent?: string;
 }) {
-  return prisma.auditLog.create({ data: params });
+  return prisma.auditLog.create({ data: params as any });
 }
