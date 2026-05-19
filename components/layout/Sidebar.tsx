@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSidebar } from "@/contexts/SidebarContext";
 import {
   LayoutDashboard,
   Users,
@@ -88,7 +88,7 @@ function getNavItems(role: string) {
 }
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useAuth();

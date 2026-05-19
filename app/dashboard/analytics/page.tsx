@@ -129,10 +129,10 @@ export default function AnalyticsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6"
         >
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Daily Attendance Trend (Last 30 days)</h3>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={analytics.attendanceTrend} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="gPresent" x1="0" y1="0" x2="0" y2="1">
@@ -157,14 +157,14 @@ export default function AnalyticsPage() {
       )}
 
       {/* Two Column: Department + Employee Ranking */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Department Attendance */}
         {analytics?.departmentAttendance && analytics.departmentAttendance.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6"
           >
             <h3 className="text-sm font-semibold text-slate-700 mb-4">Department-wise Attendance</h3>
             <ResponsiveContainer width="100%" height={220}>
@@ -187,7 +187,7 @@ export default function AnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
-            className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6"
           >
             <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
               <Trophy className="w-4 h-4 text-amber-500" /> Top Employees by Attendance
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6"
         >
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Monthly Leave Requests (Last 6 Months)</h3>
           <ResponsiveContainer width="100%" height={220}>

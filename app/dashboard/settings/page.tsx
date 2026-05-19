@@ -188,15 +188,17 @@ export default function SettingsPage() {
 
       <div>
         <Tabs defaultValue="profile">
-          <TabsList className="bg-white border border-slate-100 shadow-sm">
-            <TabsTrigger value="profile" className="gap-1.5"><User className="w-3.5 h-3.5" />Profile</TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1.5"><Bell className="w-3.5 h-3.5" />Notifications</TabsTrigger>
-            <TabsTrigger value="security" className="gap-1.5"><Lock className="w-3.5 h-3.5" />Security</TabsTrigger>
-            <TabsTrigger value="appearance" className="gap-1.5"><Palette className="w-3.5 h-3.5" />Appearance</TabsTrigger>
-            {authUser?.role === "admin" && (
-              <TabsTrigger value="office" className="gap-1.5"><Wifi className="w-3.5 h-3.5" />Office Settings</TabsTrigger>
-            )}
-          </TabsList>
+          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+            <TabsList className="bg-white border border-slate-100 shadow-sm inline-flex w-max min-w-full">
+              <TabsTrigger value="profile" className="gap-1.5 shrink-0"><User className="w-3.5 h-3.5" /><span className="hidden xs:inline sm:inline">Profile</span></TabsTrigger>
+              <TabsTrigger value="notifications" className="gap-1.5 shrink-0"><Bell className="w-3.5 h-3.5" /><span className="hidden sm:inline">Notifications</span></TabsTrigger>
+              <TabsTrigger value="security" className="gap-1.5 shrink-0"><Lock className="w-3.5 h-3.5" /><span className="hidden sm:inline">Security</span></TabsTrigger>
+              <TabsTrigger value="appearance" className="gap-1.5 shrink-0"><Palette className="w-3.5 h-3.5" /><span className="hidden sm:inline">Appearance</span></TabsTrigger>
+              {authUser?.role === "admin" && (
+                <TabsTrigger value="office" className="gap-1.5 shrink-0"><Wifi className="w-3.5 h-3.5" /><span className="hidden sm:inline">Office</span></TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           {/* Profile Tab */}
           <TabsContent value="profile">
@@ -455,6 +457,7 @@ export default function SettingsPage() {
               <div className="flex gap-3 flex-wrap">
                 {themeOptions.map(t => (
                   <button
+                    type="button"
                     key={t.id}
                     onClick={() => { setSelectedTheme(t.id); toast.success(`Theme set to ${t.label}`); }}
                     className={cn(
