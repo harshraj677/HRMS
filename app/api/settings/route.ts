@@ -4,6 +4,7 @@ import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
 const DEFAULT_SETTINGS = {
   wifiName: "",
+  officeIp: "",
   latitude: 13.962271577211828,
   longitude: 75.50897323054004,
   radiusMeters: 1000,
@@ -34,8 +35,9 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
-  const { wifiName, latitude, longitude, radiusMeters } = body as {
+  const { wifiName, officeIp, latitude, longitude, radiusMeters } = body as {
     wifiName: string;
+    officeIp: string;
     latitude: number;
     longitude: number;
     radiusMeters: number;
@@ -43,6 +45,7 @@ export async function PUT(req: NextRequest) {
 
   const value = {
     wifiName: wifiName ?? "",
+    officeIp: officeIp ?? "",
     latitude: Number(latitude) || DEFAULT_SETTINGS.latitude,
     longitude: Number(longitude) || DEFAULT_SETTINGS.longitude,
     radiusMeters: Number(radiusMeters) || DEFAULT_SETTINGS.radiusMeters,
