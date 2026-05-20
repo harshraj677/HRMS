@@ -16,7 +16,6 @@ import {
   CheckCheck,
   Send,
   AlertTriangle,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -81,8 +80,6 @@ export default function EmployeesPage() {
     email: string;
     password: string;
     emailSent: boolean;
-    emailError?: string;
-    emailErrorCode?: string;
   } | null>(null);
   const [copiedField, setCopiedField] = useState<"email" | "password" | null>(null);
   const [autoCloseCount, setAutoCloseCount] = useState<number | null>(null);
@@ -134,8 +131,6 @@ export default function EmployeesPage() {
       email: data.email.trim().toLowerCase(),
       password: result.generatedPassword,
       emailSent: result.emailSent ?? false,
-      emailError: result.emailError,
-      emailErrorCode: result.emailErrorCode,
     });
     setStep("credentials");
   };
@@ -216,39 +211,14 @@ export default function EmployeesPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
-                        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5">
-                          <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <AlertTriangle className="w-4 h-4 text-red-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-red-800">Email delivery failed</p>
-                            <p className="text-xs text-red-600/80 mt-0.5">Copy credentials and share manually.</p>
-                          </div>
+                      <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5">
+                        <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <AlertTriangle className="w-4 h-4 text-red-600" />
                         </div>
-                        {/* Show specific reason when errorCode is sandbox restriction */}
-                        {credentials.emailErrorCode === "SANDBOX_RESTRICTION" && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
-                            <p className="text-xs font-semibold text-amber-800 mb-1">Why did it fail?</p>
-                            <p className="text-xs text-amber-700 leading-relaxed">
-                              Resend is in test mode — emails only reach the Resend account owner.
-                              To send to any address, verify your domain at{" "}
-                              <strong>resend.com/domains</strong> then set{" "}
-                              <code className="bg-amber-100 px-1 rounded text-[11px]">RESEND_FROM_EMAIL</code>{" "}
-                              in Vercel.
-                            </p>
-                          </div>
-                        )}
-                        {credentials.emailErrorCode === "MISSING_API_KEY" && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
-                            <p className="text-xs font-semibold text-amber-800 mb-1">Why did it fail?</p>
-                            <p className="text-xs text-amber-700 leading-relaxed">
-                              <code className="bg-amber-100 px-1 rounded text-[11px]">RESEND_API_KEY</code> is
-                              not set on Vercel. Add it in{" "}
-                              <strong>Vercel → Settings → Environment Variables</strong> and redeploy.
-                            </p>
-                          </div>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-red-800">Email delivery failed</p>
+                          <p className="text-xs text-red-600/80 mt-0.5">Copy and share credentials manually.</p>
+                        </div>
                       </div>
                     )}
 
