@@ -83,11 +83,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  sendCredentialsEmail({
+  const emailResult = await sendCredentialsEmail({
     email: emailAddr,
     fullName: body.fullName.trim(),
     password: randomPassword,
-  }).catch(() => {});
+  });
 
   // Welcome notification for the new employee
   await prisma.notification.create({
@@ -103,8 +103,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       id: employee.id,
-      message: "Employee created. Login credentials have been sent via email.",
-      generatedPassword: randomPassword,
+      email: emailAddr,
+      emailSent: emailResult.success,
+      message: emailResult.success
+        ? "Employee created. Login credentials have been sent via email."
+        : "Employee created but the welcome email failed to send. Please share credentials manually.",
     },
     { status: 201 }
   );

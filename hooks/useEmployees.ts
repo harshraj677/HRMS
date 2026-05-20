@@ -76,8 +76,14 @@ export function useCreateEmployee() {
       if (!res.ok) throw new Error(json.error || "Failed to create employee");
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      if (data.emailSent) {
+        toast.success(`Employee added — credentials sent to ${data.email}`);
+      } else {
+        toast.success("Employee added successfully.");
+        toast.warning("Welcome email failed to send — share credentials manually.");
+      }
     },
     onError: (err: Error) => {
       toast.error(err.message);
