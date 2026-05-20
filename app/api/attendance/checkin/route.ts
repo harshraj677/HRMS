@@ -48,14 +48,16 @@ export async function POST(req: NextRequest) {
   const settingsRecord = await prisma.settings.findUnique({ where: { key: "office" } });
   const officeSettings = (settingsRecord?.value as typeof DEFAULT_OFFICE) ?? DEFAULT_OFFICE;
 
-  // CHECK 2 — WiFi SSID verification (only if admin has configured a WiFi name)
+  // CHECK 2 — WiFi SSID verification
+  // Web browsers cannot read WiFi SSID, so wifiSsid will be undefined for browser-based check-ins.
+  // Only block if the client explicitly sends an SSID that doesn't match (e.g. a native mobile app).
   const wifiSsid: string | undefined = body?.wifiSsid;
-  if (officeSettings.wifiName && wifiSsid !== officeSettings.wifiName) {
+  if (officeSettings.wifiName && wifiSsid !== undefined && wifiSsid !== officeSettings.wifiName) {
     await prisma.suspiciousLog.create({
       data: {
         employeeId: payload.id,
         type: "wifi_mismatch",
-        description: `Check-in blocked: Connected to "${wifiSsid ?? "unknown"}", required "${officeSettings.wifiName}".`,
+        description: `Check-in blocked: Connected to "${wifiSsid}", required "${officeSettings.wifiName}".`,
         ipAddress: getClientIP(req),
       },
     });
