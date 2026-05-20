@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Users,
   CalendarCheck,
@@ -21,10 +22,19 @@ import { useTodayAttendance, useCheckIn, useCheckOut } from "@/hooks/useAttendan
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlertBanner } from "@/components/ui/AlertBanner";
 import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+
+function parseCheckError(msg: string): { title: string; message: string } {
+  const colonIdx = msg.indexOf(": ");
+  if (colonIdx > 0 && colonIdx < 60) {
+    return { title: msg.slice(0, colonIdx), message: msg.slice(colonIdx + 2) };
+  }
+  return { title: "Check-in failed", message: msg };
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -84,6 +94,18 @@ export default function DashboardPage() {
 
   const hasCheckedIn = !!todayAttendance?.checkIn;
   const hasCheckedOut = !!todayAttendance?.checkOut;
+
+  const [alertHidden, setAlertHidden] = useState(false);
+  const activeError = (checkIn.error ?? checkOut.error) as Error | null;
+
+  // Reset dismiss whenever a new mutation attempt starts
+  useEffect(() => {
+    if (checkIn.isPending || checkOut.isPending) setAlertHidden(false);
+  }, [checkIn.isPending, checkOut.isPending]);
+
+  const alertData = activeError && !alertHidden
+    ? parseCheckError(activeError.message)
+    : null;
 
   const fmtTime = (iso?: string | null) => {
     if (!iso) return null;
@@ -160,6 +182,17 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Check-in / Check-out error banner ────────────────────── */}
+      {alertData && (
+        <AlertBanner
+          type="error"
+          title={alertData.title}
+          message={alertData.message}
+          autoDismiss={8000}
+          onDismiss={() => setAlertHidden(true)}
+        />
+      )}
 
       {/* ── Quick attendance card ─────────────────────────────────── */}
       <motion.div

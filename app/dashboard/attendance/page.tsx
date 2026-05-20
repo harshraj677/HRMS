@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -28,7 +28,16 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTodayAttendance, useAttendanceHistory, useCheckIn, useCheckOut } from "@/hooks/useAttendance";
 import { useAuth } from "@/hooks/useAuth";
+import { AlertBanner } from "@/components/ui/AlertBanner";
 import { cn, formatDate, getInitials } from "@/lib/utils";
+
+function parseCheckError(msg: string): { title: string; message: string } {
+  const colonIdx = msg.indexOf(": ");
+  if (colonIdx > 0 && colonIdx < 60) {
+    return { title: msg.slice(0, colonIdx), message: msg.slice(colonIdx + 2) };
+  }
+  return { title: "Check-in failed", message: msg };
+}
 import { format } from "date-fns";
 
 const statusConfig: Record<string, { label: string; cls: string; dot: string }> = {
@@ -58,6 +67,17 @@ export default function AttendancePage() {
 
   const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
+  const [alertHidden, setAlertHidden] = useState(false);
+
+  const activeError = (checkIn.error ?? checkOut.error) as Error | null;
+
+  useEffect(() => {
+    if (checkIn.isPending || checkOut.isPending) setAlertHidden(false);
+  }, [checkIn.isPending, checkOut.isPending]);
+
+  const alertData = activeError && !alertHidden
+    ? parseCheckError(activeError.message)
+    : null;
 
   useEffect(() => {
     setMounted(true);
@@ -89,6 +109,17 @@ export default function AttendancePage() {
         <h2 className="text-xl font-bold text-slate-900">Attendance</h2>
         <p className="text-sm text-slate-500 mt-0.5">{currentDate}</p>
       </div>
+
+      {/* ── Check-in / Check-out error banner ────────────────────── */}
+      {alertData && (
+        <AlertBanner
+          type="error"
+          title={alertData.title}
+          message={alertData.message}
+          autoDismiss={8000}
+          onDismiss={() => setAlertHidden(true)}
+        />
+      )}
 
       {/* ── Today's status: 3-col grid ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
