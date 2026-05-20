@@ -113,7 +113,6 @@ export function useCheckIn() {
 
   return useMutation({
     mutationFn: async () => {
-      // Get geolocation first
       const location = await getCurrentPosition();
 
       const res = await fetch("/api/attendance/checkin", {
@@ -130,9 +129,6 @@ export function useCheckIn() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       const time = new Date(data.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       toast.success(`Checked in at ${time} (${data.distance}m from office)`);
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
     },
   });
 }
@@ -152,9 +148,6 @@ export function useCheckOut() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       const time = new Date(data.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       toast.success(`Checked out at ${time} — ${data.hours}h worked`);
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
     },
   });
 }
