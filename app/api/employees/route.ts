@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const emailSent = await sendEmployeeEmail(emailAddr, randomPassword);
+  const emailResult = await sendEmployeeEmail(emailAddr, body.fullName.trim(), randomPassword);
+  const emailSent = emailResult.success;
 
   await prisma.notification.create({
     data: {
