@@ -14,6 +14,7 @@ import {
   EyeOff,
   Check,
   Wifi,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,11 +97,13 @@ export default function SettingsPage() {
 
   const [officeSettings, setOfficeSettings] = useState({
     wifiName: "",
+    officeIp: "",
     latitude: 13.962271577211828,
     longitude: 75.50897323054004,
     radiusMeters: 1000,
   });
   const [officeSaving, setOfficeSaving] = useState(false);
+  const [detectingIp, setDetectingIp] = useState(false);
 
   useEffect(() => {
     if (authUser?.role !== "admin") return;
@@ -175,6 +178,24 @@ export default function SettingsPage() {
       toast.error("Network error, please try again");
     } finally {
       setOfficeSaving(false);
+    }
+  };
+
+  const detectOfficeIp = async () => {
+    setDetectingIp(true);
+    try {
+      const res = await fetch("/api/settings/detect-ip");
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Failed to detect IP");
+      } else {
+        setOfficeSettings(prev => ({ ...prev, officeIp: json.ip }));
+        toast.success(`Office IP detected: ${json.ip} — click Save to apply`);
+      }
+    } catch {
+      toast.error("Network error, please try again");
+    } finally {
+      setDetectingIp(false);
     }
   };
 
@@ -400,7 +421,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">Office Settings</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Configure the GPS geofence for check-in. The WiFi name field is reserved for native app support — web browsers cannot detect WiFi, so leave it empty to avoid blocking check-ins.
+                    Set the office WiFi name and register its public IP so only employees on the office network can check in. Also configure the GPS geofence as a fallback boundary.
                   </p>
                 </div>
                 <Separator />
@@ -413,9 +434,37 @@ export default function SettingsPage() {
                       onChange={e => setOfficeSettings(prev => ({ ...prev, wifiName: e.target.value }))}
                     />
                     <p className="text-xs text-slate-400">
-                      Leave empty to skip WiFi check during check-in.
+                      Leave empty to disable WiFi enforcement. When set, employees must be on the registered network to check in.
                     </p>
                   </div>
+                  {officeSettings.wifiName && (
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                        Office WiFi IP Address
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Click Detect while on office WiFi"
+                          value={officeSettings.officeIp}
+                          onChange={e => setOfficeSettings(prev => ({ ...prev, officeIp: e.target.value }))}
+                          className="font-mono text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={detectOfficeIp}
+                          disabled={detectingIp}
+                          className="shrink-0 rounded-xl"
+                        >
+                          {detectingIp ? <Loader2 className="w-4 h-4 animate-spin" /> : "Detect"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Connect to the office WiFi, then click <strong>Detect</strong> to register its public IP. Employees will be blocked if their network IP doesn&apos;t match.
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label>Office Latitude</Label>
                     <Input

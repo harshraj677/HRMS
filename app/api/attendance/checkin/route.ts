@@ -5,6 +5,7 @@ import { isWithinGeofence, getAttendanceStatus, OFFICE_LOCATION } from "@/lib/ge
 
 const DEFAULT_OFFICE = {
   wifiName: "",
+  officeIp: "",
   latitude: OFFICE_LOCATION.latitude,
   longitude: OFFICE_LOCATION.longitude,
   radiusMeters: OFFICE_LOCATION.radiusMeters,
@@ -48,23 +49,26 @@ export async function POST(req: NextRequest) {
   const settingsRecord = await prisma.settings.findUnique({ where: { key: "office" } });
   const officeSettings = (settingsRecord?.value as typeof DEFAULT_OFFICE) ?? DEFAULT_OFFICE;
 
-  // CHECK 2 — WiFi SSID verification
-  // Web browsers cannot read WiFi SSID, so wifiSsid will be undefined for browser-based check-ins.
-  // Only block if the client explicitly sends an SSID that doesn't match (e.g. a native mobile app).
-  const wifiSsid: string | undefined = body?.wifiSsid;
-  if (officeSettings.wifiName && wifiSsid !== undefined && wifiSsid !== officeSettings.wifiName) {
-    await prisma.suspiciousLog.create({
-      data: {
-        employeeId: payload.id,
-        type: "wifi_mismatch",
-        description: `Check-in blocked: Connected to "${wifiSsid}", required "${officeSettings.wifiName}".`,
-        ipAddress: getClientIP(req),
-      },
-    });
-    return NextResponse.json(
-      { error: "Check-in blocked: You must be connected to the office WiFi." },
-      { status: 403 }
-    );
+  // CHECK 2 — Office WiFi verification via public IP
+  // Browsers cannot read WiFi SSID, so we compare the client's public IP against the
+  // office IP registered by the admin while on office WiFi. All devices on the same
+  // WiFi share the same public IP (NAT), making this a reliable network check.
+  const clientIp = getClientIP(req);
+  if (officeSettings.wifiName && officeSettings.officeIp) {
+    if (clientIp !== officeSettings.officeIp) {
+      await prisma.suspiciousLog.create({
+        data: {
+          employeeId: payload.id,
+          type: "wifi_mismatch",
+          description: `Check-in blocked: Network IP "${clientIp}" does not match office WiFi IP "${officeSettings.officeIp}" (WiFi: ${officeSettings.wifiName}).`,
+          ipAddress: clientIp,
+        },
+      });
+      return NextResponse.json(
+        { error: "Check-in blocked: You must be connected to the office WiFi." },
+        { status: 403 }
+      );
+    }
   }
 
   // CHECK 3 — GPS distance / geofence (using DB office location)
@@ -108,7 +112,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ipAddress = getClientIP(req);
+  const ipAddress = clientIp;
   const device = req.headers.get("user-agent") || null;
   const status = getAttendanceStatus(now);
 
