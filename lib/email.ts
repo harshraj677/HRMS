@@ -1,25 +1,37 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-export async function sendEmployeeEmail(email: string, password: string): Promise<boolean> {
+export async function sendEmployeeEmail(
+  employeeEmail: string,
+  password: string
+): Promise<boolean> {
   try {
-    const { error } = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: email,
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: employeeEmail,
       subject: "Login Credentials - Anvesync",
-      text: `Login Email: ${email}\nPassword: ${password}\n\nPlease login and change your password.\n\nhttps://anvesync.vercel.app/login`,
+      text: [
+        "Welcome to Anvesync",
+        "",
+        `Login Email: ${employeeEmail}`,
+        `Password:    ${password}`,
+        "",
+        "Please login and change your password.",
+        "https://anvesync.vercel.app/login",
+      ].join("\n"),
     });
 
-    if (error) {
-      console.error("[email] Send failed:", error);
-      return false;
-    }
-
-    console.log("[email] Sent successfully to:", email);
+    console.log("[email] Sent to:", employeeEmail);
     return true;
   } catch (err) {
-    console.error("[email] Error:", err);
+    console.error("[email] Failed:", err);
     return false;
   }
 }
