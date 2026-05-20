@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import {
   Search,
@@ -12,9 +12,11 @@ import {
   Users,
   Loader2,
   Phone,
-  Briefcase,
   Copy,
   CheckCheck,
+  Send,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -75,8 +77,15 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [step, setStep] = useState<"form" | "credentials">("form");
-  const [credentials, setCredentials] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
+  const [credentials, setCredentials] = useState<{
+    email: string;
+    password: string;
+    emailSent: boolean;
+    emailError?: string;
+    emailErrorCode?: string;
+  } | null>(null);
   const [copiedField, setCopiedField] = useState<"email" | "password" | null>(null);
+  const [autoCloseCount, setAutoCloseCount] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EmployeeData | null>(null);
 
   const { data: user } = useAuth();
@@ -100,6 +109,24 @@ export default function EmployeesPage() {
     defaultValues: { role: "employee" },
   });
 
+  // Auto-close countdown when email sent successfully
+  useEffect(() => {
+    if (step !== "credentials" || !credentials?.emailSent) return;
+    setAutoCloseCount(5);
+    const interval = setInterval(() => {
+      setAutoCloseCount((n) => {
+        if (n === null || n <= 1) {
+          clearInterval(interval);
+          handleDone();
+          return null;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, credentials?.emailSent]);
+
   const onSubmit = async (data: AddForm) => {
     const result = await createEmployee.mutateAsync(data);
     reset();
@@ -107,6 +134,8 @@ export default function EmployeesPage() {
       email: data.email.trim().toLowerCase(),
       password: result.generatedPassword,
       emailSent: result.emailSent ?? false,
+      emailError: result.emailError,
+      emailErrorCode: result.emailErrorCode,
     });
     setStep("credentials");
   };
@@ -121,6 +150,7 @@ export default function EmployeesPage() {
     setStep("form");
     setCredentials(null);
     setCopiedField(null);
+    setAutoCloseCount(null);
     setDialogOpen(false);
   };
 
@@ -155,60 +185,110 @@ export default function EmployeesPage() {
               <DialogContent className="sm:max-w-md rounded-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-lg font-bold text-slate-900">
-                    {step === "credentials" ? "Credentials Ready" : "Add New Employee"}
+                    {step === "credentials"
+                      ? credentials?.emailSent ? "Employee Onboarded ✓" : "Account Created"
+                      : "Add New Employee"}
                   </DialogTitle>
                   {step === "form" && (
-                    <p className="text-sm text-slate-400 mt-1">A temporary password will be emailed to them.</p>
+                    <p className="text-sm text-slate-400 mt-1">A temporary password will be emailed automatically.</p>
                   )}
                 </DialogHeader>
 
                 {step === "credentials" && credentials ? (
-                  <div className="space-y-5 mt-2">
-                    <div className="flex flex-col items-center gap-2 py-1 text-center">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${credentials.emailSent ? "bg-emerald-100" : "bg-amber-100"}`}>
-                        <CheckCheck className={`w-6 h-6 ${credentials.emailSent ? "text-emerald-600" : "text-amber-600"}`} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-700">Employee account created.</p>
-                      {credentials.emailSent ? (
-                        <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
-                          ✓ Credentials emailed to {credentials.email}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                          ⚠ Email failed — copy and share these manually.
-                        </p>
-                      )}
-                    </div>
+                  <div className="space-y-4 mt-1">
 
-                    {(["email", "password"] as const).map((field) => (
-                      <div key={field} className="space-y-1.5">
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                          {field === "email" ? "Email" : "Temporary Password"}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-800 flex items-center overflow-x-auto whitespace-nowrap">
-                            {credentials[field]}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(field, credentials[field])}
-                            title={`Copy ${field}`}
-                            className="h-11 w-11 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all shrink-0"
-                          >
-                            {copiedField === field
-                              ? <CheckCheck className="w-4 h-4 text-emerald-500" />
-                              : <Copy className="w-4 h-4" />}
-                          </button>
+                    {/* Status banner */}
+                    {credentials.emailSent ? (
+                      <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <Send className="w-4 h-4 text-emerald-600" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-emerald-800">Welcome email sent!</p>
+                          <p className="text-xs text-emerald-700/80 mt-0.5 truncate">
+                            Credentials delivered to <strong>{credentials.email}</strong>
+                          </p>
+                        </div>
+                        {autoCloseCount !== null && (
+                          <span className="text-xs font-mono text-emerald-500 shrink-0 mt-1">
+                            Closing in {autoCloseCount}s
+                          </span>
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5">
+                          <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-red-800">Email delivery failed</p>
+                            <p className="text-xs text-red-600/80 mt-0.5">Copy credentials and share manually.</p>
+                          </div>
+                        </div>
+                        {/* Show specific reason when errorCode is sandbox restriction */}
+                        {credentials.emailErrorCode === "SANDBOX_RESTRICTION" && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
+                            <p className="text-xs font-semibold text-amber-800 mb-1">Why did it fail?</p>
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                              Resend is in test mode — emails only reach the Resend account owner.
+                              To send to any address, verify your domain at{" "}
+                              <strong>resend.com/domains</strong> then set{" "}
+                              <code className="bg-amber-100 px-1 rounded text-[11px]">RESEND_FROM_EMAIL</code>{" "}
+                              in Vercel.
+                            </p>
+                          </div>
+                        )}
+                        {credentials.emailErrorCode === "MISSING_API_KEY" && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
+                            <p className="text-xs font-semibold text-amber-800 mb-1">Why did it fail?</p>
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                              <code className="bg-amber-100 px-1 rounded text-[11px]">RESEND_API_KEY</code> is
+                              not set on Vercel. Add it in{" "}
+                              <strong>Vercel → Settings → Environment Variables</strong> and redeploy.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Credentials fields — always show */}
+                    <div className="space-y-3">
+                      {(["email", "password"] as const).map((field) => (
+                        <div key={field} className="space-y-1.5">
+                          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+                            {field === "email" ? "Email" : "Temporary Password"}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-800 flex items-center overflow-x-auto whitespace-nowrap">
+                              {credentials[field]}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(field, credentials[field])}
+                              title={`Copy ${field}`}
+                              className="h-11 w-11 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all shrink-0"
+                            >
+                              {copiedField === field
+                                ? <CheckCheck className="w-4 h-4 text-emerald-500" />
+                                : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
                     <button
                       type="button"
                       onClick={handleDone}
-                      className="w-full h-11 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.98] transition-all"
+                      className={cn(
+                        "w-full h-11 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]",
+                        credentials.emailSent
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      )}
                     >
-                      Done — I&apos;ve saved the credentials
+                      {credentials.emailSent ? "Done" : "Done — I've saved the credentials"}
                     </button>
                   </div>
                 ) : (

@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { sendCredentialsEmail } from "@/lib/email";
+import { sendCredentialsEmail, type EmailResult } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
@@ -105,6 +105,8 @@ export async function POST(req: NextRequest) {
       id: employee.id,
       email: emailAddr,
       emailSent: emailResult.success,
+      emailError: emailResult.success ? undefined : (emailResult.error ?? "Unknown error"),
+      emailErrorCode: emailResult.success ? undefined : emailResult.errorCode,
       generatedPassword: randomPassword,
       message: emailResult.success
         ? "Employee created. Login credentials have been sent via email."
