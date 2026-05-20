@@ -400,8 +400,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">Office Settings</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Configure the office WiFi name and GPS geofence. Employees must be on
-                    this WiFi and within the radius to check in.
+                    Configure the GPS geofence for check-in. The WiFi name field is reserved for native app support — web browsers cannot detect WiFi, so leave it empty to avoid blocking check-ins.
                   </p>
                 </div>
                 <Separator />
