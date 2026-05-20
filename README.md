@@ -1,39 +1,83 @@
-# Anvesync Employee Management System
+# Anvesync — Workforce Management Platform
 
-A full-stack employee management web application built with **Next.js 15**, **Prisma**, **MySQL**, and **Tailwind CSS**. It provides an admin dashboard to manage employees, attendance, leave requests, messaging, and analytics.
+> Built for **Anvesana Innovation & Entrepreneurial Forum**
+
+A full-stack, mobile-first workforce management platform built with **Next.js**, **TypeScript**, **MongoDB**, and **Tailwind CSS**. Designed for managing employees, attendance, leave, startups, and internal operations — with enterprise-grade security and a polished UI.
+
+**Live:** [anvesync.vercel.app](https://anvesync.vercel.app)
 
 ---
 
 ## Features
 
-- **Authentication** — JWT-based login/logout with bcrypt password hashing
-- **Dashboard** — Overview cards, attendance trend charts, leave distribution charts, and recent activity feed
-- **Employee Management** — View, add, and manage employee profiles
-- **Attendance Tracking** — Check-in/check-out records per employee
-- **Leave Management** — Submit and approve/reject leave requests with leave balance tracking
-- **Messaging** — Internal messaging between employees
-- **Calendar** — Visual calendar for scheduling and events
-- **Analytics** — Data visualizations using Recharts
-- **Settings** — Application and user preference settings
-- **Dark / Light Theme** — via `next-themes`
-- **Responsive UI** — Built with Radix UI primitives and Tailwind CSS
+### Authentication & Security
+- JWT-based login with `HttpOnly` cookies
+- bcrypt password hashing (12 salt rounds)
+- `mustChangePassword` flag enforced on first login
+- Login history tracking per employee
+
+### Employee Management
+- Add, view, edit, and soft-delete employees
+- Auto-generate secure temporary password on creation
+- Automatic welcome email via **Gmail SMTP** (Nodemailer)
+- Role-based access: `admin` / `employee`
+- Department, position, leave balance tracking
+- Audit log for all admin actions
+
+### Attendance & Check-in Security
+- One-click Check In / Check Out from dashboard and attendance page
+- **GPS Geofencing** — blocks check-in beyond configured radius from office
+- **Office WiFi Verification** — admin registers office public IP; check-in blocked if employee is on a different network
+- Mock/fake GPS detection
+- Suspicious activity logging (`wifi_mismatch`, `geofence_violation`, `mock_location_detected`)
+- Attendance map showing real-time employee locations
+
+### Leave Management
+- Employees submit leave requests with date range and reason
+- Admin approves or rejects with one click
+- Leave balance auto-deducted on approval
+- Pending requests shown on admin dashboard
+
+### Startup & Incubation Management
+- Full CRUD for incubated startups
+- Track stage, funding, mentor, team size, progress
+- Soft-delete with archive support
+
+### Notifications
+- Real-time in-app notification system
+- Welcome notifications on account creation
+- Unread badge counts
+
+### Analytics & Dashboard
+- KPI stat cards (attendance %, late arrivals, leave balance, pending requests)
+- Admin overview: total employees, present today, on leave
+- Recharts-powered visualisations
+
+### UI & UX
+- Mobile-first responsive design (tested on iPhone, Android)
+- Framer Motion animations throughout
+- Premium `AlertBanner` component for inline error states (replaces raw toasts)
+- Dark/light theme support
+- Smooth tab navigation with gradient scroll indicators
 
 ---
 
 ## Tech Stack
 
-| Layer       | Technology                              |
-|-------------|------------------------------------------|
-| Framework   | Next.js 15 (App Router)                 |
-| Language    | TypeScript                              |
-| Database    | MySQL (via Prisma ORM)                  |
-| Auth        | JSON Web Tokens + bcrypt                |
-| UI          | Tailwind CSS, Radix UI, shadcn/ui       |
-| Charts      | Recharts                                |
-| Animations  | Framer Motion                           |
-| Forms       | React Hook Form + Zod                   |
-| Data Fetching | TanStack React Query + Axios          |
-| Notifications | Sonner (toast)                        |
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript |
+| Database | MongoDB (via Prisma ORM) |
+| Auth | JWT + bcrypt |
+| Email | Nodemailer + Gmail SMTP |
+| UI | Tailwind CSS, Radix UI, shadcn/ui |
+| Charts | Recharts |
+| Animations | Framer Motion |
+| Forms | React Hook Form + Zod |
+| Data Fetching | TanStack React Query |
+| Notifications | Sonner (toast) |
+| Deployment | Vercel |
 
 ---
 
@@ -41,28 +85,35 @@ A full-stack employee management web application built with **Next.js 15**, **Pr
 
 ```
 ├── app/
-│   ├── (auth)/login/          # Login page
-│   ├── (dashboard)/           # Protected dashboard routes
-│   │   ├── page.tsx           # Admin dashboard home
-│   │   ├── employees/         # Employee list & detail pages
-│   │   ├── attendance/        # Attendance tracking
-│   │   ├── leave/             # Leave requests
-│   │   ├── messages/          # Internal messaging
-│   │   ├── analytics/         # Analytics & reports
-│   │   ├── calendar/          # Calendar view
-│   │   └── settings/          # Settings
-│   └── api/                   # API routes (auth)
+│   ├── api/
+│   │   ├── auth/              # Login, logout, me
+│   │   ├── employees/         # CRUD + onboarding email
+│   │   ├── attendance/        # Check-in, check-out, map, today
+│   │   ├── leave/             # Submit, approve, reject
+│   │   ├── startups/          # Incubation management
+│   │   ├── notifications/     # Read, mark read
+│   │   ├── settings/          # Office config, detect-ip
+│   │   └── dashboard/         # Aggregated stats
+│   └── dashboard/
+│       ├── page.tsx           # Main dashboard (admin + employee views)
+│       ├── employees/         # Employee directory & detail
+│       ├── attendance/        # Attendance history + check-in card
+│       ├── leave/             # Leave requests
+│       ├── startups/          # Startup directory
+│       ├── analytics/         # Charts & reports
+│       └── settings/          # Profile, security, office settings
 ├── components/
-│   ├── dashboard/             # Dashboard-specific components
-│   ├── layout/                # Sidebar, TopNav
-│   └── ui/                    # shadcn/ui components
-├── hooks/                     # Custom React Query hooks
-├── lib/                       # Utilities, auth helpers, DB client, API
-├── prisma/
-│   ├── schema.prisma          # Database schema
-│   ├── seed.ts                # Database seeder
-│   └── migrations/            # Migration history
-└── types/                     # Shared TypeScript types
+│   ├── ui/                    # shadcn/ui + AlertBanner
+│   └── RoleGuard.tsx          # Admin-only route guard
+├── hooks/                     # React Query hooks (attendance, employees, leave…)
+├── lib/
+│   ├── auth.ts                # JWT sign/verify
+│   ├── db.ts                  # Prisma client
+│   ├── email.ts               # Nodemailer Gmail SMTP
+│   ├── geofence.ts            # Haversine distance + geofence check
+│   └── utils.ts               # Shared utilities
+└── prisma/
+    └── schema.prisma          # MongoDB schema
 ```
 
 ---
@@ -70,15 +121,15 @@ A full-stack employee management web application built with **Next.js 15**, **Pr
 ## Getting Started
 
 ### Prerequisites
-
 - Node.js 18+
-- MySQL database
+- MongoDB database (Atlas or local)
+- Gmail account with App Password enabled
 
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd anvesana-management
+git clone https://github.com/harshraj677/anvesync.git
+cd anvesync
 ```
 
 ### 2. Install dependencies
@@ -89,21 +140,30 @@ npm install
 
 ### 3. Configure environment variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DATABASE"
-JWT_SECRET="your_jwt_secret_key"
+# Database
+DATABASE_URL="mongodb+srv://USER:PASSWORD@cluster.mongodb.net/dbname"
+
+# Auth
+JWT_SECRET="your_secure_jwt_secret"
+
+# Email (Gmail SMTP)
+EMAIL_USER="your_gmail@gmail.com"
+EMAIL_PASS="your_16_char_app_password"
+
+# App
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="your_google_maps_key"
 ```
 
-### 4. Set up the database
+> **Gmail App Password:** Google Account → Security → 2-Step Verification → App Passwords → create one for Mail.
+
+### 4. Generate Prisma client
 
 ```bash
-# Run Prisma migrations
-npx prisma migrate deploy
-
-# (Optional) Seed the database with sample data
-npx prisma db seed
+npx prisma generate
 ```
 
 ### 5. Start the development server
@@ -112,34 +172,70 @@ npx prisma db seed
 npm run dev
 ```
 
-The app will be available at [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Environment Variables — Vercel Deployment
+
+Set these in **Vercel → Project → Settings → Environment Variables**:
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | MongoDB connection string |
+| `JWT_SECRET` | Secret key for JWT signing |
+| `EMAIL_USER` | Gmail address used as sender |
+| `EMAIL_PASS` | Gmail App Password (not your account password) |
+| `NEXT_PUBLIC_APP_URL` | Your Vercel deployment URL |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps API key for attendance map |
+
+---
+
+## Office Settings (Admin)
+
+After deploying, go to **Settings → Office Settings** as admin to configure:
+
+| Setting | Description |
+|---|---|
+| Office WiFi Name | Label for the office network (display only) |
+| Office WiFi IP | Register current public IP while on office WiFi — click **Detect** |
+| Office Latitude / Longitude | GPS coordinates of the office |
+| Geofence Radius (meters) | Max distance from office allowed for check-in (default: 1000m) |
+
+Employees can only check in when:
+1. Their public IP matches the registered office WiFi IP *(if configured)*
+2. They are within the geofence radius
 
 ---
 
 ## Available Scripts
 
-| Command           | Description                        |
-|-------------------|------------------------------------|
-| `npm run dev`     | Start development server           |
-| `npm run build`   | Build for production               |
-| `npm run start`   | Start production server            |
-| `npm run lint`    | Run ESLint                         |
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
 
 ---
 
 ## Database Schema
 
-| Model          | Description                                      |
-|----------------|--------------------------------------------------|
-| `Employee`     | Core employee record with role and leave balance |
-| `Attendance`   | Daily check-in / check-out records               |
-| `LeaveRequest` | Leave applications with approval status          |
-| `Message`      | Internal messages between employees              |
-| `Department`   | Department definitions                           |
-| `Role`         | Role definitions                                 |
+| Model | Description |
+|---|---|
+| `Employee` | Core user record — role, department, leave balance, password hash |
+| `Attendance` | Daily check-in/check-out with GPS coordinates and IP |
+| `LeaveRequest` | Leave application with approval status |
+| `SuspiciousLog` | Flagged check-in attempts (fake GPS, wrong WiFi, geofence breach) |
+| `LoginHistory` | Per-employee login audit trail |
+| `Notification` | In-app notification records |
+| `Startup` | Incubated startup records |
+| `Settings` | Key-value store for office configuration |
+| `AuditLog` | Admin action audit trail |
+| `Archive` | Soft-deleted record snapshots |
 
 ---
 
 ## License
 
-This project is private and not licensed for public distribution.
+Private — Anvesana Innovation & Entrepreneurial Forum. Not licensed for public distribution.
