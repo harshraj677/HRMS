@@ -79,9 +79,9 @@ export function useCreateEmployee() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       if (data.emailSent) {
-        toast.success(`Credentials emailed to ${data.email}`);
+        toast.success(`Welcome email sent successfully to ${data.email}`);
       } else {
-        toast.error("Email failed to send. Share credentials manually.");
+        toast.error("Email delivery failed — credentials shown for manual sharing.");
       }
     },
     onError: (err: Error) => {
