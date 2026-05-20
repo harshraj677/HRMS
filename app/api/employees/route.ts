@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { sendCredentialsEmail, type EmailResult } from "@/lib/email";
+import { sendEmployeeEmail } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
@@ -54,15 +54,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid email format." }, { status: 400 });
   }
 
-  const existing = await prisma.employee.findUnique({
-    where: { email: emailAddr },
-    select: { id: true },
-  });
+  const existing = await prisma.employee.findUnique({ where: { email: emailAddr }, select: { id: true } });
   if (existing) {
-    return NextResponse.json(
-      { error: "An employee with this email already exists." },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "An employee with this email already exists." }, { status: 409 });
   }
 
   const randomPassword = crypto.randomBytes(4).toString("hex") + "A1!";
@@ -83,13 +77,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const emailResult = await sendCredentialsEmail({
-    email: emailAddr,
-    fullName: body.fullName.trim(),
-    password: randomPassword,
-  });
+  const emailSent = await sendEmployeeEmail(emailAddr, randomPassword);
 
-  // Welcome notification for the new employee
   await prisma.notification.create({
     data: {
       recipientId: employee.id,
@@ -104,13 +93,8 @@ export async function POST(req: NextRequest) {
     {
       id: employee.id,
       email: emailAddr,
-      emailSent: emailResult.success,
-      emailError: emailResult.success ? undefined : (emailResult.error ?? "Unknown error"),
-      emailErrorCode: emailResult.success ? undefined : emailResult.errorCode,
+      emailSent,
       generatedPassword: randomPassword,
-      message: emailResult.success
-        ? "Employee created. Login credentials have been sent via email."
-        : "Employee created but the welcome email failed to send. Please share credentials manually.",
     },
     { status: 201 }
   );
