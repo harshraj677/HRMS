@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       id: employee.id,
       email: emailAddr,
       emailSent: emailResult.success,
+      generatedPassword: randomPassword,
       message: emailResult.success
         ? "Employee created. Login credentials have been sent via email."
         : "Employee created but the welcome email failed to send. Please share credentials manually.",

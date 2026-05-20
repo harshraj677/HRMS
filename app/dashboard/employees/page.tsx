@@ -75,7 +75,7 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [step, setStep] = useState<"form" | "credentials">("form");
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
   const [copiedField, setCopiedField] = useState<"email" | "password" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EmployeeData | null>(null);
 
@@ -103,12 +103,12 @@ export default function EmployeesPage() {
   const onSubmit = async (data: AddForm) => {
     const result = await createEmployee.mutateAsync(data);
     reset();
-    if (result?.generatedPassword) {
-      setCredentials({ email: data.email.trim().toLowerCase(), password: result.generatedPassword });
-      setStep("credentials");
-    } else {
-      setDialogOpen(false);
-    }
+    setCredentials({
+      email: data.email.trim().toLowerCase(),
+      password: result.generatedPassword,
+      emailSent: result.emailSent ?? false,
+    });
+    setStep("credentials");
   };
 
   const handleCopy = (field: "email" | "password", value: string) => {
@@ -165,13 +165,19 @@ export default function EmployeesPage() {
                 {step === "credentials" && credentials ? (
                   <div className="space-y-5 mt-2">
                     <div className="flex flex-col items-center gap-2 py-1 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                        <CheckCheck className="w-6 h-6 text-emerald-600" />
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${credentials.emailSent ? "bg-emerald-100" : "bg-amber-100"}`}>
+                        <CheckCheck className={`w-6 h-6 ${credentials.emailSent ? "text-emerald-600" : "text-amber-600"}`} />
                       </div>
                       <p className="text-sm font-semibold text-slate-700">Employee account created.</p>
-                      <p className="text-xs text-slate-400">
-                        Copy and share these credentials — they will not be shown again.
-                      </p>
+                      {credentials.emailSent ? (
+                        <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
+                          ✓ Credentials emailed to {credentials.email}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                          ⚠ Email failed — copy and share these manually.
+                        </p>
+                      )}
                     </div>
 
                     {(["email", "password"] as const).map((field) => (
