@@ -1,22 +1,13 @@
 "use client";
 
-import {
-  Mail,
-  Phone,
-  Building,
-  Calendar,
-  Briefcase,
-  CalendarCheck,
-  ClipboardList,
-  CheckCircle2,
-  LogOut,
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
+import { useAttendanceHistory } from "@/hooks/useAttendance";
+import { useLeaveRequests } from "@/hooks/useLeave";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -25,12 +16,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/hooks/useAuth";
-import { useEmployee } from "@/hooks/useEmployees";
-import { useLeaveRequests } from "@/hooks/useLeave";
-import { useAttendanceHistory } from "@/hooks/useAttendance";
-import { cn, formatDate, getStatusColor, getDepartmentColor, getInitials } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import {
+  Mail,
+  Phone,
+  Building,
+  Calendar,
+  User,
+  MapPin,
+  Briefcase,
+  FileText,
+  FileCheck,
+} from "lucide-react";
+import { formatDate, getStatusColor } from "@/lib/utils";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
+import { ProfileSectionCard } from "@/components/profile/ProfileSectionCard";
+import { FieldGrid } from "@/components/profile/FieldGrid";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
+import { DocumentUploader } from "@/components/profile/DocumentUploader";
+import { SkillsTags } from "@/components/profile/SkillsTags";
 
 export default function ProfilePage() {
   const router = useRouter();
