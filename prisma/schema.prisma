@@ -26,6 +26,8 @@ model Employee {
   leaveRequests      LeaveRequest[]
   loginHistory       LoginHistory[]
   suspiciousLogs     SuspiciousLog[]
+  profile            EmployeeProfile?
+  documents          EmployeeDocument[]
 }
 
 model Attendance {
@@ -158,4 +160,64 @@ model Settings {
   key       String   @unique
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+model EmployeeProfile {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId          String   @unique @db.ObjectId
+  
+  // Personal
+  dateOfBirth         DateTime?
+  gender              String?
+  nationality         String?
+  maritalStatus       String?
+  
+  // Address
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  postalCode          String?
+  country             String?
+  
+  // Emergency Contact
+  emergencyName       String?
+  emergencyRelation   String?
+  emergencyPhone      String?
+  emergencyEmail      String?
+  
+  // Education
+  highestEducation    String?
+  institution         String?
+  fieldOfStudy        String?
+  graduationYear      Int?
+  
+  // Professional
+  skills              String[]  @default([])
+  certifications      String[]  @default([])
+  experience          String?
+  bio                 String?
+  
+  // Avatar
+  avatar              String?  // Base64 encoded image
+  
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model EmployeeDocument {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId          String   @db.ObjectId
+  documentName        String
+  documentType        String   // "certificate", "degree", "resume", "other"
+  documentUrl         String   // Base64 encoded file
+  verificationStatus  String   @default("pending")  // pending, verified, rejected
+  uploadedAt          DateTime @default(now())
+  verifiedAt          DateTime?
+  verifiedBy          String?  @db.ObjectId
+  deletedAt           DateTime?
+  
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
