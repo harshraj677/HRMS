@@ -2,10 +2,14 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "next-themes";
 import { queryClient } from "@/lib/queryClient";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster
@@ -23,5 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }}
       />
     </QueryClientProvider>
+    </ErrorBoundary>
+    </ThemeProvider>
   );
 }

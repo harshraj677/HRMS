@@ -10,11 +10,13 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Anvesync EMP | Employee Management Platform",
-    template: "%s | Anvesync EMP",
+    default: "Anvesync HRMS",
+    template: "%s | Anvesync HRMS",
   },
-  description: "Internal Employee Management Platform for Anvesync Innovation & Entrepreneurial Forum",
+  description: "Internal Employee Management Platform for Anvesana Innovation & Entrepreneurial Forum",
   keywords: ["employee management", "HR", "attendance", "leave management"],
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Anvesync" },
 };
 
 export default function RootLayout({
@@ -24,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-slate-50 antialiased">
+      <body className="min-h-screen bg-slate-50 antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

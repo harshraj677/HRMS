@@ -125,6 +125,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.position !== undefined) data.position = body.position?.trim() || null;
     if (body.role) data.role = body.role;
     if (body.leaveBalance !== undefined) data.leaveBalance = Number(body.leaveBalance);
+    if (body.reportingManagerId !== undefined) data.reportingManagerId = body.reportingManagerId || null;
   }
 
   if (Object.keys(data).length === 0) {

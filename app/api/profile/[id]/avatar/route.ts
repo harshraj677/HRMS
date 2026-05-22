@@ -1,83 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
-// POST /api/profile/[id]/avatar
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const user = await verifyToken(token || "");
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+const MAX_BYTES = 2 * 1024 * 1024;
 
-    const targetId = params.id;
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const token = getTokenFromRequest(req);
+  if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const payload = verifyToken(token);
+  if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-    // Permission check
-    if (user.id !== targetId && user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    // Convert file to base64
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${file.type};base64,${base64}`;
-
-    // Update or create profile with avatar
-    const profile = await prisma.employeeProfile.upsert({
-      where: { employeeId: targetId },
-      create: {
-        employeeId: targetId,
-        avatar: dataUrl,
-      },
-      update: {
-        avatar: dataUrl,
-      },
-    });
-
-    return NextResponse.json(profile);
-  } catch (error) {
-    console.error("Avatar POST error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  const { id } = await params;
+  if (payload.role !== "admin" && payload.id !== id) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
+
+  // Accept multipart form OR JSON { imageData: "data:..." }
+  let dataUrl: string | null = null;
+
+  const ct = req.headers.get("content-type") ?? "";
+  if (ct.includes("multipart/form-data")) {
+    const form = await req.formData().catch(() => null);
+    const file = form?.get("file") as File | null;
+    if (!file) return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    if (file.size > MAX_BYTES) return NextResponse.json({ error: "Image exceeds 2 MB." }, { status: 413 });
+    const buf = await file.arrayBuffer();
+    dataUrl = `data:${file.type};base64,${Buffer.from(buf).toString("base64")}`;
+  } else {
+    const body = await req.json().catch(() => null);
+    if (!body?.imageData) return NextResponse.json({ error: "imageData required." }, { status: 400 });
+    dataUrl = body.imageData as string;
+    const base64Part = dataUrl.split(",")[1] ?? "";
+    if (Math.ceil((base64Part.length * 3) / 4) > MAX_BYTES) {
+      return NextResponse.json({ error: "Image exceeds 2 MB." }, { status: 413 });
+    }
+  }
+
+  const profile = await prisma.employeeProfile.upsert({
+    where: { employeeId: id },
+    update: { avatar: dataUrl },
+    create: { employeeId: id, avatar: dataUrl },
+  });
+
+  return NextResponse.json({ profile });
 }
 
-// DELETE /api/profile/[id]/avatar
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const user = await verifyToken(token || "");
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const token = getTokenFromRequest(req);
+  if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const payload = verifyToken(token);
+  if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-    const targetId = params.id;
-
-    // Permission check
-    if (user.id !== targetId && user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const profile = await prisma.employeeProfile.update({
-      where: { employeeId: targetId },
-      data: { avatar: null },
-    });
-
-    return NextResponse.json(profile);
-  } catch (error) {
-    console.error("Avatar DELETE error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  const { id } = await params;
+  if (payload.role !== "admin" && payload.id !== id) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
+
+  await prisma.employeeProfile.upsert({
+    where: { employeeId: id },
+    update: { avatar: null },
+    create: { employeeId: id },
+  });
+
+  return NextResponse.json({ message: "Avatar removed." });
 }

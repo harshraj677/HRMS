@@ -1,10 +1,53 @@
 "use client";
 
+import { useState, Children } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { TopNav } from "@/components/layout/TopNav";
 import { BottomNav } from "@/components/layout/BottomNav";
+import dynamic from "next/dynamic";
+
+// Skip SSR on TopNav — it reads auth/notification state that differs between server and client,
+// which causes Radix UI to generate mismatched IDs and trigger a hydration error.
+const TopNav = dynamic(() => import("@/components/layout/TopNav").then((m) => m.TopNav), {
+  ssr: false,
+});
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { data: user } = useAuth();
+  const userId = user?.id ? String(user.id) : "";
+  const { data: profile, isLoading } = useProfile(userId);
+  const [dismissed, setDismissed] = useState(false);
+
+  // Show wizard if: employee (not admin), profile loaded, onboarding not completed
+  const showWizard =
+    !dismissed &&
+    !isLoading &&
+    !!user &&
+    user.role !== "admin" &&
+    !!userId &&
+    !(profile as any)?.onboardingCompleted;
+
+  if (isLoading && user?.role !== "admin") {
+    return <>{Children.toArray(children)}</>;
+  }
+
+  return (
+    <>
+      {Children.toArray(children)}
+      {showWizard && (
+        <OnboardingWizard
+          employeeId={userId}
+          employeeName={user?.fullName ?? ""}
+          onComplete={() => setDismissed(true)}
+        />
+      )}
+    </>
+  );
+}
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
@@ -29,14 +72,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <DashboardShell>
+        <OnboardingGate>
+          {children}
+        </OnboardingGate>
+      </DashboardShell>
     </SidebarProvider>
   );
 }

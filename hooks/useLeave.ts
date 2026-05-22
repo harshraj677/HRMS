@@ -10,7 +10,9 @@ export interface LeaveData {
   endDate: string;
   days: number;
   reason: string;
+  category: string;
   status: string;
+  managerComment: string | null;
   createdAt: string;
   fullName: string;
   department: string | null;
@@ -37,6 +39,7 @@ export function useSubmitLeaveRequest() {
       startDate: string;
       endDate: string;
       reason: string;
+      category?: string;
     }) => {
       const res = await fetch("/api/leave", {
         method: "POST",

@@ -39,6 +39,8 @@ export async function PUT(
     );
   }
 
+  const managerComment = typeof body.comment === "string" ? body.comment.trim() : undefined;
+
   if (body.action === "approve") {
     const emp = await prisma.employee.findUnique({
       where: { id: leave.employeeId },
@@ -51,7 +53,7 @@ export async function PUT(
       );
     }
 
-    await prisma.leaveRequest.update({ where: { id }, data: { status: "approved" } });
+    await prisma.leaveRequest.update({ where: { id }, data: { status: "approved", approvedBy: payload.id, managerComment: managerComment ?? null } });
     await prisma.employee.update({
       where: { id: leave.employeeId },
       data: { leaveBalance: { decrement: leave.days } },
@@ -68,7 +70,7 @@ export async function PUT(
 
     return NextResponse.json({ message: "Leave approved.", daysDeducted: leave.days });
   } else {
-    await prisma.leaveRequest.update({ where: { id }, data: { status: "rejected" } });
+    await prisma.leaveRequest.update({ where: { id }, data: { status: "rejected", managerComment: managerComment ?? null } });
     await prisma.notification.create({
       data: {
         recipientId: leave.employeeId,

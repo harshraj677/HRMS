@@ -11,4 +11,5 @@ export const prisma: PrismaClient =
   globalThis._prisma ??
   (globalThis._prisma = new PrismaClient({
     log: isDev ? ["error", "warn"] : ["error"],
+    datasourceUrl: process.env.DATABASE_URL,
   }));

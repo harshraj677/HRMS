@@ -1,23 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 import {
-  Bell,
-  Search,
-  ChevronDown,
-  User,
-  Settings,
-  LogOut,
-  HelpCircle,
-  CheckCheck,
+  Bell, ChevronDown, User, Settings, LogOut, HelpCircle, CheckCheck, Sun, Moon,
 } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CommandPalette } from "@/components/search/CommandPalette";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +30,31 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard/attendance-map": { title: "Attendance Map", description: "Live employee check-in locations" },
   "/dashboard/leave": { title: "Leave Requests", description: "Review and manage leave applications" },
   "/dashboard/analytics": { title: "Analytics", description: "Attendance & performance insights" },
-  "/dashboard/settings": { title: "Settings", description: "Configure your preferences" },
+  "/dashboard/settings":        { title: "Settings",         description: "Configure your preferences" },
+  "/dashboard/payroll":         { title: "Payroll",           description: "Manage salaries and payroll" },
+  "/dashboard/payroll/generate":{ title: "Generate Payroll",  description: "Calculate and generate monthly payroll" },
+  "/dashboard/my-payroll":      { title: "My Payroll",        description: "Your salary history and payslips" },
+  "/dashboard/departments":     { title: "Departments",        description: "Manage company departments" },
+  "/dashboard/org-chart":       { title: "Org Chart",          description: "Company hierarchy and reporting structure" },
+  "/dashboard/directory":       { title: "Directory",          description: "Find and connect with colleagues" },
+  "/dashboard/my-team":         { title: "My Team",            description: "Manage your direct reports" },
+  "/dashboard/announcements":   { title: "Announcements",       description: "Company news and updates" },
+  "/dashboard/recruitment":     { title: "Recruitment",         description: "Manage jobs and candidates" },
+  "/dashboard/hr-documents":    { title: "HR Documents",        description: "Policies, handbooks and company forms" },
+  "/dashboard/helpdesk":        { title: "Helpdesk",            description: "Manage support tickets" },
+  "/dashboard/exits":           { title: "Exit Management",     description: "Manage employee exit processes" },
+  "/dashboard/tickets":         { title: "My Tickets",          description: "Raise and track support requests" },
+  "/dashboard/my-referrals":    { title: "My Referrals",        description: "Refer candidates to open positions" },
+  "/dashboard/resignation":     { title: "My Resignation",       description: "Submit and track your exit process" },
+  "/dashboard/reports":         { title: "Reports",              description: "Export data as CSV for analysis" },
+  "/dashboard/activity-logs":   { title: "Activity Logs",        description: "Track user actions across the platform" },
+  "/dashboard/security":        { title: "Security",             description: "Login history and session activity" },
+  "/dashboard/ai-assistant":    { title: "AI HR Assistant",      description: "Your intelligent HR guide" },
+  "/dashboard/events":          { title: "Events",               description: "Workshops, hackathons and demo days" },
+  "/dashboard/training":        { title: "Training & Learning",  description: "Skill development and certifications" },
+  "/dashboard/system-health":   { title: "System Health",        description: "Platform status and key metrics" },
+  "/dashboard/ai-insights":     { title: "AI Insights",          description: "Data-driven alerts across all HR modules" },
+  "/dashboard/mentor":          { title: "Mentor Reviews",        description: "Score and review startup progress" },
 };
 
 const TYPE_DOT: Record<string, string> = {
@@ -54,8 +70,8 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useAuth();
-  const [searchFocused, setSearchFocused] = useState(false);
   const initials = user?.fullName?.split(" ").map((n: string) => n[0]).join("").toUpperCase() ?? "?";
+  const { theme, setTheme } = useTheme();
 
   const { data: notifications = [] } = useNotifications();
   const markRead    = useMarkRead();
@@ -92,21 +108,19 @@ export function TopNav() {
 
       <div className="flex-1" />
 
-      {/* Search (desktop only) */}
-      <div className="relative hidden md:block">
-        <motion.div
-          animate={{ width: searchFocused ? 280 : 200 }}
-          transition={{ duration: 0.2 }}
-        >
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            placeholder="Search..."
-            className="pl-9 h-9 bg-slate-50 border-slate-200 focus:bg-white text-sm"
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
-        </motion.div>
-      </div>
+      {/* Global command palette trigger */}
+      <CommandPalette isAdmin={user?.role === "admin"} />
+
+      {/* Theme toggle */}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Toggle dark mode"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="shrink-0 min-w-[44px] min-h-[44px]"
+      >
+        {theme === "dark" ? <Sun className="w-5 h-5 text-slate-600" /> : <Moon className="w-5 h-5 text-slate-600" />}
+      </Button>
 
       {/* Notifications */}
       <DropdownMenu>
