@@ -28,6 +28,10 @@ model Employee {
   suspiciousLogs     SuspiciousLog[]
   profile            EmployeeProfile?
   documents          EmployeeDocument[]
+  salaryStructure       SalaryStructure?
+  payrolls              Payroll[]
+  reportingManagerId    String?    @db.ObjectId
+  announcementsCreated  Announcement[]
 }
 
 model Attendance {
@@ -57,11 +61,13 @@ model LeaveRequest {
   startDate  DateTime
   endDate    DateTime
   days       Int       @default(1)
-  reason     String
-  status     String    @default("pending")
-  approvedBy String?
-  deletedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  reason          String
+  category        String    @default("casual")
+  status          String    @default("pending")
+  approvedBy      String?
+  managerComment  String?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   employee   Employee  @relation(fields: [employeeId], references: [id])
 }
@@ -90,13 +96,36 @@ model SuspiciousLog {
 }
 
 model Department {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
-  name String
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  code        String?
+  description String?
+  managerId   String?   @db.ObjectId
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model Role {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
-  name String
+model Designation {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  level        Int       @default(1)
+  departmentId String?   @db.ObjectId
+  createdAt    DateTime  @default(now())
+}
+
+model Announcement {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  audience    String    @default("all")
+  targetDept  String?
+  isPinned    Boolean   @default(false)
+  createdById String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy   Employee  @relation(fields: [createdById], references: [id])
 }
 
 model Startup {
@@ -200,7 +229,18 @@ model EmployeeProfile {
   
   // Avatar
   avatar              String?  // Base64 encoded image
-  
+
+  // Work (admin-editable)
+  employeeType        String?
+  joiningDate         DateTime?
+  reportingManager    String?
+  workLocation        String?
+  shiftTiming         String?
+  employmentStatus    String?
+
+  // Onboarding flag
+  onboardingCompleted Boolean  @default(false)
+
   employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   
   createdAt           DateTime @default(now())
@@ -214,10 +254,267 @@ model EmployeeDocument {
   documentType        String   // "certificate", "degree", "resume", "other"
   documentUrl         String   // Base64 encoded file
   verificationStatus  String   @default("pending")  // pending, verified, rejected
+  rejectionReason     String?
   uploadedAt          DateTime @default(now())
   verifiedAt          DateTime?
   verifiedBy          String?  @db.ObjectId
   deletedAt           DateTime?
   
   employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model SalaryStructure {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId          String    @unique @db.ObjectId
+
+  // Earnings
+  basicSalary         Float     @default(0)
+  hra                 Float     @default(0)
+  specialAllowance    Float     @default(0)
+  bonus               Float     @default(0)
+
+  // Deductions
+  pfDeduction         Float     @default(0)
+  taxDeduction        Float     @default(0)
+  otherDeductions     Float     @default(0)
+
+  // Banking
+  bankName            String?
+  accountNumber       String?
+  ifscCode            String?
+  panNumber           String?
+  uanNumber           String?
+
+  salaryEffectiveFrom DateTime?
+
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Payroll {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId          String    @db.ObjectId
+  month               Int
+  year                Int
+
+  workingDays         Int       @default(0)
+  presentDays         Int       @default(0)
+  leaveDays           Int       @default(0)
+  absentDays          Int       @default(0)
+  paidLeaveDays       Int       @default(0)
+  unpaidLeaveDays     Int       @default(0)
+  overtimeHours       Float     @default(0)
+
+  // Salary snapshot
+  basicSalary         Float     @default(0)
+  hra                 Float     @default(0)
+  specialAllowance    Float     @default(0)
+  bonus               Float     @default(0)
+  overtimePay         Float     @default(0)
+
+  // Deductions
+  pfDeduction         Float     @default(0)
+  taxDeduction        Float     @default(0)
+  leaveDeduction      Float     @default(0)
+  otherDeductions     Float     @default(0)
+
+  grossSalary         Float     @default(0)
+  totalDeductions     Float     @default(0)
+  netSalary           Float     @default(0)
+
+  paymentStatus       String    @default("pending")
+  managerNotes        String?
+  generatedAt         DateTime  @default(now())
+  paidAt              DateTime?
+
+  employee            Employee  @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, month, year])
+}
+
+model Job {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  department     String?
+  location       String?
+  experience     String?
+  salaryMin      Float?
+  salaryMax      Float?
+  employmentType String    @default("Full-time")
+  skills         String[]  @default([])
+  description    String
+  status         String    @default("active")
+  deadline       DateTime?
+  createdById    String    @db.ObjectId
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Candidate {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  fullName       String
+  email          String
+  phone          String?
+  resumeBase64   String?
+  appliedJobId   String?   @db.ObjectId
+  jobTitle       String?
+  stage          String    @default("applied")
+  notes          String?
+  referredById   String?   @db.ObjectId
+  interviewDate  DateTime?
+  interviewNotes String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model HRDocument {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  category     String    @default("general")
+  fileBase64   String
+  fileName     String
+  fileType     String
+  isPublic     Boolean   @default(true)
+  uploadedById String    @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Ticket {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  subject      String
+  category     String
+  priority     String    @default("medium")
+  status       String    @default("open")
+  description  String
+  createdById  String    @db.ObjectId
+  assignedToId String?   @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  messages     TicketMessage[]
+}
+
+model TicketMessage {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId   String   @db.ObjectId
+  senderId   String   @db.ObjectId
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  action     String
+  module     String
+  entityId   String?
+  entityName String?
+  detail     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+}
+
+model StartupMilestone {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  startupId   String    @db.ObjectId
+  title       String
+  description String?
+  targetDate  DateTime?
+  completedAt DateTime?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+}
+
+model Event {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  eventType    String    @default("workshop")
+  startDate    DateTime
+  endDate      DateTime?
+  location     String?
+  isOnline     Boolean   @default(false)
+  maxCapacity  Int?
+  status       String    @default("upcoming")
+  createdById  String    @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  registrations EventRegistration[]
+}
+
+model EventRegistration {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId      String   @db.ObjectId
+  employeeId   String   @db.ObjectId
+  attended     Boolean  @default(false)
+  registeredAt DateTime @default(now())
+
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, employeeId])
+}
+
+model Course {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  category     String    @default("general")
+  content      String?
+  durationMins Int?
+  level        String    @default("beginner")
+  isRequired   Boolean   @default(false)
+  createdById  String    @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  enrollments  CourseEnrollment[]
+}
+
+model CourseEnrollment {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  courseId    String    @db.ObjectId
+  employeeId  String    @db.ObjectId
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  enrolledAt  DateTime  @default(now())
+
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, employeeId])
+}
+
+model Resignation {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId      String    @unique @db.ObjectId
+  reason          String
+  lastWorkingDay  DateTime
+  status          String    @default("submitted")
+  managerComment  String?
+  hrComment       String?
+  exitFeedback    String?
+  laptopReturned  Boolean   @default(false)
+  idCardReturned  Boolean   @default(false)
+  payrollCleared  Boolean   @default(false)
+  docsHandedOver  Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model MentorReview {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  startupId   String    @db.ObjectId
+  reviewerId  String    @db.ObjectId
+  score       Int
+  notes       String
+  category    String    @default("general")
+  createdAt   DateTime  @default(now())
 }

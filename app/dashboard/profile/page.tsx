@@ -1,72 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
+import { useEmployee } from "@/hooks/useEmployees";
 import { useAttendanceHistory } from "@/hooks/useAttendance";
 import { useLeaveRequests } from "@/hooks/useLeave";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Mail,
-  Phone,
-  Building,
-  Calendar,
-  User,
-  MapPin,
-  Briefcase,
-  FileText,
-  FileCheck,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Mail, Phone, Building, Calendar, CalendarCheck,
+  ClipboardList, CheckCircle2, LogOut,
 } from "lucide-react";
-import { formatDate, getStatusColor } from "@/lib/utils";
+import { cn, formatDate, getStatusColor, getDepartmentColor, getInitials } from "@/lib/utils";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
-import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
-import { ProfileSectionCard } from "@/components/profile/ProfileSectionCard";
-import { FieldGrid } from "@/components/profile/FieldGrid";
-import { AvatarUploader } from "@/components/profile/AvatarUploader";
-import { DocumentUploader } from "@/components/profile/DocumentUploader";
-import { SkillsTags } from "@/components/profile/SkillsTags";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { data: authUser, isLoading: authLoading } = useAuth();
-  const { data: employee, isLoading } = useEmployee(authUser?.id ?? "");
+  const userId = authUser?.id ? String(authUser.id) : "";
+  const { data: employee, isLoading: empLoading } = useEmployee(userId);
+  const { data: profile } = useProfile(userId);
   const { data: leaveRequests } = useLeaveRequests();
-  const { data: attendance } = useAttendanceHistory();
-
-  const fmtTime = (iso: string | null) => {
-    if (!iso) return "–";
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
+  const { data: attendance } = useAttendanceHistory(userId);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   };
 
-  if (authLoading || isLoading) {
+  const fmtTime = (iso: string | null) => {
+    if (!iso) return "–";
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (authLoading || empLoading) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-2xl border p-6">
-          <div className="flex items-start gap-6">
-            <Skeleton className="h-24 w-24 rounded-full" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </div>
-        </div>
+      <div className="space-y-5">
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
@@ -74,233 +53,200 @@ export default function ProfilePage() {
   if (!employee) return null;
 
   const leaveUsed = 18 - (employee.leaveBalance ?? 18);
-  const myLeaves = leaveRequests ?? [];
+  const myLeaves = (leaveRequests ?? []).filter((l: any) => String(l.employeeId) === userId);
+  const profileImg = (profile as any)?.avatar;
+
+  const completion = calculateProfileCompletion({
+    fullName: employee.fullName,
+    email: employee.email,
+    phone: employee.phone ?? undefined,
+    dateOfBirth: (profile as any)?.dateOfBirth,
+    gender: (profile as any)?.gender,
+    nationality: (profile as any)?.nationality,
+    maritalStatus: (profile as any)?.maritalStatus,
+    addressLine1: (profile as any)?.addressLine1,
+    city: (profile as any)?.city,
+    state: (profile as any)?.state,
+    postalCode: (profile as any)?.postalCode,
+    country: (profile as any)?.country,
+    emergencyName: (profile as any)?.emergencyName,
+    emergencyPhone: (profile as any)?.emergencyPhone,
+    highestEducation: (profile as any)?.highestEducation,
+    institution: (profile as any)?.institution,
+    skills: (profile as any)?.skills,
+    certifications: (profile as any)?.certifications,
+    experience: (profile as any)?.experience,
+    avatar: (profile as any)?.avatar,
+    department: employee.department ?? undefined,
+    position: employee.position ?? undefined,
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Profile Card */}
+    <div className="space-y-5">
+      {/* Profile Header */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {/* Banner */}
-        <div className="relative h-32 bg-gradient-to-r from-indigo-600 via-violet-500 to-purple-600 overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-violet-400/20 blur-xl" />
-          </div>
-        </div>
-
+        <div className="h-28 bg-gradient-to-r from-indigo-600 via-violet-500 to-purple-600" />
         <div className="px-6 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-14">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
             <Avatar className="h-24 w-24 ring-4 ring-white shadow-xl">
-              <AvatarFallback className="text-2xl bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 font-bold">
-                {getInitials(employee.fullName)}
-              </AvatarFallback>
+              {profileImg
+                ? <AvatarImage src={profileImg} alt={employee.fullName} />
+                : <AvatarFallback className="text-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-bold">
+                    {getInitials(employee.fullName)}
+                  </AvatarFallback>
+              }
             </Avatar>
             <div className="flex-1 min-w-0 pt-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold text-slate-900">{employee.fullName}</h2>
                 <Badge variant="outline" className="capitalize">{employee.role}</Badge>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">{employee.position ?? "–"}</p>
+              <p className="text-sm text-slate-500 mt-0.5">{employee.position ?? "—"}</p>
               {employee.department && (
-                <span className={cn(
-                  "inline-block mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full",
-                  getDepartmentColor(employee.department)
-                )}>
+                <span className={cn("inline-block mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full", getDepartmentColor(employee.department))}>
                   {employee.department}
                 </span>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
+            <Button variant="outline" size="sm" className="rounded-xl text-red-600 border-red-200 hover:bg-red-50 shrink-0" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" /> Sign Out
             </Button>
           </div>
 
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-slate-100">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-4 border-t border-slate-100">
             {[
               { icon: Mail, label: "Email", value: employee.email },
-              { icon: Phone, label: "Phone", value: employee.phone ?? "–" },
-              { icon: Building, label: "Department", value: employee.department ?? "–" },
+              { icon: Phone, label: "Phone", value: employee.phone ?? "—" },
+              { icon: Building, label: "Department", value: employee.department ?? "—" },
               { icon: Calendar, label: "Joined", value: formatDate(employee.createdAt) },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.label} className="flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                    <Icon className="w-4 h-4 text-slate-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-slate-400 mb-0.5">{item.label}</p>
-                    <p className="text-sm font-medium text-slate-700 truncate">{item.value}</p>
-                  </div>
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon className="w-4 h-4 text-slate-400" />
                 </div>
-              );
-            })}
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+                  <p className="text-sm font-medium text-slate-700 truncate">{value}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div>
-        <Tabs defaultValue="overview">
-          <TabsList className="bg-white border border-slate-100 shadow-sm">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="attendance">My Attendance</TabsTrigger>
-            <TabsTrigger value="leaves">My Leave History</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="overview">
+        <TabsList className="bg-white border border-slate-100 shadow-sm">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="leaves">Leave History</TabsTrigger>
+        </TabsList>
 
-          {/* Overview */}
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-              {/* Leave Balance */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h3 className="text-base font-semibold text-slate-900 mb-5">Leave Balance</h3>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-medium text-slate-700">Annual Leave</span>
-                  <span className="text-sm text-slate-500">
-                    <span className="font-semibold text-slate-900">{employee.leaveBalance ?? 18}</span>/18 days remaining
-                  </span>
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
+              <h3 className="text-sm font-semibold text-slate-900">Leave Balance</h3>
+              <div>
+                <div className="flex items-center justify-between mb-2 text-sm">
+                  <span className="text-slate-600">Annual Leave</span>
+                  <span><strong className="text-slate-900">{employee.leaveBalance ?? 18}</strong><span className="text-slate-400">/18 remaining</span></span>
                 </div>
                 <Progress value={((employee.leaveBalance ?? 18) / 18) * 100} className="h-2" />
-                <p className="text-xs text-slate-400 mt-1">{leaveUsed} days used of 18 maximum</p>
+                <p className="text-xs text-slate-400 mt-1.5">{leaveUsed} days used</p>
+              </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Total", value: 18, color: "bg-slate-50 text-slate-700" },
-                    { label: "Used", value: leaveUsed, color: "bg-amber-50 text-amber-700" },
-                    { label: "Remaining", value: employee.leaveBalance ?? 18, color: "bg-emerald-50 text-emerald-700" },
-                  ].map((s) => (
-                    <div key={s.label} className={cn("rounded-xl p-3 text-center", s.color)}>
-                      <p className="text-2xl font-bold">{s.value}</p>
-                      <p className="text-xs font-medium mt-0.5">{s.label}</p>
-                    </div>
-                  ))}
+              {/* Profile completion */}
+              <div className="pt-4 border-t border-slate-50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-slate-700">Profile Completion</p>
+                  <span className={cn("text-sm font-bold",
+                    completion >= 80 ? "text-emerald-600" : completion >= 50 ? "text-amber-600" : "text-indigo-600"
+                  )}>{completion}%</span>
                 </div>
-              </div>
-
-              {/* Quick Stats */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h3 className="text-base font-semibold text-slate-900 mb-5">Quick Stats</h3>
-                <div className="space-y-4">
-                  {[
-                    { icon: CalendarCheck, label: "Leave Balance", value: `${employee.leaveBalance ?? 18} days`, color: "bg-indigo-50 text-indigo-600" },
-                    { icon: ClipboardList, label: "Leave Requests", value: `${myLeaves.length}`, color: "bg-amber-50 text-amber-600" },
-                    { icon: CheckCircle2, label: "Attendance Records", value: `${attendance?.length ?? 0}`, color: "bg-violet-50 text-violet-600" },
-                  ].map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div key={stat.label} className="flex items-center gap-3">
-                        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", stat.color)}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400">{stat.label}</p>
-                          <p className="text-sm font-semibold text-slate-800">{stat.value}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <Progress value={completion} className={cn("h-2",
+                  completion >= 80 ? "[&>div]:bg-emerald-500" :
+                  completion >= 50 ? "[&>div]:bg-amber-400" : "[&>div]:bg-indigo-500"
+                )} />
               </div>
             </div>
-          </TabsContent>
 
-          {/* Attendance */}
-          <TabsContent value="attendance">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mt-4 overflow-hidden">
-              <div className="p-5 border-b border-slate-100">
-                <h3 className="text-base font-semibold text-slate-900">Attendance History</h3>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Quick Stats</h3>
+              <div className="space-y-3.5">
+                {[
+                  { icon: CalendarCheck, label: "Leave Balance",     value: `${employee.leaveBalance ?? 18}d`, color: "bg-indigo-50 text-indigo-600" },
+                  { icon: ClipboardList, label: "Leave Requests",    value: `${myLeaves.length}`,              color: "bg-amber-50 text-amber-600" },
+                  { icon: CheckCircle2,  label: "Attendance Records", value: `${attendance?.length ?? 0}`,     color: "bg-violet-50 text-violet-600" },
+                ].map(({ icon: Icon, label, value, color }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", color)}><Icon className="w-4 h-4" /></div>
+                    <div><p className="text-xs text-slate-400">{label}</p><p className="text-sm font-semibold text-slate-800">{value}</p></div>
+                  </div>
+                ))}
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/80">
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Date</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Check In</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Check Out</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Hours</TableHead>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mt-4 overflow-hidden">
+            <div className="p-5 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-900">Attendance History</h3></div>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                  {["Date","Check In","Check Out","Hours"].map(h => <TableHead key={h} className="text-xs font-semibold text-slate-500 uppercase">{h}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendance?.map((r: any) => (
+                  <TableRow key={r.id} className="border-slate-100">
+                    <TableCell className="font-medium text-sm">{formatDate(r.date)}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{fmtTime(r.checkIn)}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{fmtTime(r.checkOut)}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{r.hours != null ? `${r.hours}h` : "–"}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendance?.map((record: any) => (
-                    <TableRow key={record.id} className="border-slate-100">
-                      <TableCell className="font-medium text-sm">{formatDate(record.date)}</TableCell>
-                      <TableCell className="text-sm text-slate-600">{fmtTime(record.checkIn)}</TableCell>
-                      <TableCell className="text-sm text-slate-600">{fmtTime(record.checkOut)}</TableCell>
-                      <TableCell className="text-sm text-slate-600">{record.hours != null ? `${record.hours}h` : "–"}</TableCell>
-                    </TableRow>
-                  ))}
-                  {(!attendance || attendance.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 text-slate-400 text-sm">
-                        No attendance records yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+                ))}
+                {(!attendance || attendance.length === 0) && (
+                  <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400 text-sm">No records yet</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
 
-          {/* Leave History */}
-          <TabsContent value="leaves">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mt-4 overflow-hidden">
-              <div className="p-5 border-b border-slate-100">
-                <h3 className="text-base font-semibold text-slate-900">Leave History</h3>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/80">
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Duration</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase hidden md:table-cell">Reason</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Applied</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase">Status</TableHead>
+        <TabsContent value="leaves">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mt-4 overflow-hidden">
+            <div className="p-5 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-900">Leave History</h3></div>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                  {["Duration","Category","Reason","Applied","Status"].map(h => <TableHead key={h} className="text-xs font-semibold text-slate-500 uppercase">{h}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {myLeaves.map((l: any) => (
+                  <TableRow key={l.id} className="border-slate-100">
+                    <TableCell className="text-sm">
+                      <span className="text-slate-600">{formatDate(l.startDate)}</span>
+                      {l.startDate !== l.endDate && <span className="text-slate-400"> → {formatDate(l.endDate)}</span>}
+                      <span className="ml-1 text-xs text-slate-400">({l.days}d)</span>
+                    </TableCell>
+                    <TableCell><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 capitalize">{l.category ?? "casual"}</span></TableCell>
+                    <TableCell className="text-sm text-slate-500 max-w-xs truncate">{l.reason}</TableCell>
+                    <TableCell className="text-sm text-slate-500">{formatDate(l.createdAt)}</TableCell>
+                    <TableCell>
+                      <span className={cn("text-xs font-medium px-2.5 py-0.5 rounded-full capitalize", getStatusColor(l.status))}>{l.status}</span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {myLeaves.map((leave: any) => (
-                    <TableRow key={leave.id} className="border-slate-100">
-                      <TableCell className="text-sm">
-                        <span className="text-slate-600">{formatDate(leave.startDate)}</span>
-                        {leave.startDate !== leave.endDate && (
-                          <span className="text-slate-400"> → {formatDate(leave.endDate)}</span>
-                        )}
-                        <span className="ml-1 text-xs text-slate-400">({leave.days}d)</span>
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-500 hidden md:table-cell max-w-xs truncate">
-                        {leave.reason}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-500">
-                        {formatDate(leave.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          "text-xs font-medium px-2.5 py-0.5 rounded-full capitalize",
-                          getStatusColor(leave.status)
-                        )}>
-                          {leave.status}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {myLeaves.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 text-slate-400 text-sm">
-                        No leave requests yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+                ))}
+                {myLeaves.length === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400 text-sm">No leave requests yet</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

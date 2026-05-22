@@ -1,156 +1,151 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { toast } from "sonner";
 
-// Get profile data
-export const useProfile = (employeeId: string) => {
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export function useProfile(employeeId: string) {
   return useQuery({
     queryKey: ["profile", employeeId],
     queryFn: async () => {
-      const response = await api.get(`/api/profile/${employeeId}`);
-      return response.data;
+      const res = await fetch(`/api/profile/${employeeId}`);
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      const json = await res.json();
+      return json.profile;
     },
     enabled: !!employeeId,
   });
-};
+}
 
-// Update profile data
-export const useUpdateProfile = (employeeId: string) => {
-  const queryClient = useQueryClient();
-
+export function useUpdateProfile(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: any) => {
-      const response = await api.put(`/api/profile/${employeeId}`, data);
-      return response.data;
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await fetch(`/api/profile/${employeeId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Update failed");
+      return json.profile;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", employeeId] });
+      qc.invalidateQueries({ queryKey: ["profile", employeeId] });
+      toast.success("Profile updated.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}
 
-// Upload avatar
-export const useUploadAvatar = (employeeId: string) => {
-  const queryClient = useQueryClient();
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 
+export function useUploadAvatar(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await api.post(
-        `/api/profile/${employeeId}/avatar`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      return response.data;
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/profile/${employeeId}/avatar`, { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      return json.profile;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", employeeId] });
+      qc.invalidateQueries({ queryKey: ["profile", employeeId] });
+      toast.success("Profile photo updated.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}
 
-// Delete avatar
-export const useDeleteAvatar = (employeeId: string) => {
-  const queryClient = useQueryClient();
-
+export function useDeleteAvatar(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const response = await api.delete(`/api/profile/${employeeId}/avatar`);
-      return response.data;
+      const res = await fetch(`/api/profile/${employeeId}/avatar`, { method: "DELETE" });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error ?? "Failed"); }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", employeeId] });
+      qc.invalidateQueries({ queryKey: ["profile", employeeId] });
+      toast.success("Photo removed.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}
 
-// Get documents
-export const useProfileDocuments = (employeeId: string) => {
+// ─── Documents ────────────────────────────────────────────────────────────────
+
+export function useProfileDocuments(employeeId: string) {
   return useQuery({
     queryKey: ["profile-documents", employeeId],
     queryFn: async () => {
-      const response = await api.get(`/api/profile/${employeeId}/documents`);
-      return response.data;
+      const res = await fetch(`/api/profile/${employeeId}/documents`);
+      if (!res.ok) throw new Error("Failed to fetch documents");
+      const json = await res.json();
+      return json.documents ?? [];
     },
     enabled: !!employeeId,
   });
-};
+}
 
-// Upload document
-export const useUploadDocument = (employeeId: string) => {
-  const queryClient = useQueryClient();
+// Keep old export name for backward compat
+export const useDocuments = useProfileDocuments;
 
+export function useUploadDocument(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: {
-      file: File;
-      documentName: string;
-      documentType: string;
-    }) => {
-      const formData = new FormData();
-      formData.append("file", data.file);
-      formData.append("documentName", data.documentName);
-      formData.append("documentType", data.documentType);
-
-      const response = await api.post(
-        `/api/profile/${employeeId}/documents`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      return response.data;
+    mutationFn: async (data: { file: File; documentName: string; documentType: string }) => {
+      const form = new FormData();
+      form.append("file", data.file);
+      form.append("documentName", data.documentName);
+      form.append("documentType", data.documentType);
+      const res = await fetch(`/api/profile/${employeeId}/documents`, { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      return json.document;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["profile-documents", employeeId],
-      });
+      qc.invalidateQueries({ queryKey: ["profile-documents", employeeId] });
+      toast.success("Document uploaded.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}
 
-// Delete document
-export const useDeleteDocument = (employeeId: string) => {
-  const queryClient = useQueryClient();
-
+export function useDeleteDocument(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (docId: string) => {
-      const response = await api.delete(
-        `/api/profile/${employeeId}/documents/${docId}`
-      );
-      return response.data;
+      const res = await fetch(`/api/profile/${employeeId}/documents/${docId}`, { method: "DELETE" });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error ?? "Delete failed"); }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["profile-documents", employeeId],
-      });
+      qc.invalidateQueries({ queryKey: ["profile-documents", employeeId] });
+      toast.success("Document deleted.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}
 
-// Verify document (admin only)
-export const useVerifyDocument = (employeeId: string) => {
-  const queryClient = useQueryClient();
-
+export function useVerifyDocument(employeeId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (docId: string) => {
-      const response = await api.patch(
-        `/api/profile/${employeeId}/documents/${docId}`,
-        { verificationStatus: "verified" }
-      );
-      return response.data;
+    mutationFn: async (data: { docId: string; status: "verified" | "rejected"; rejectionReason?: string }) => {
+      const res = await fetch(`/api/profile/${employeeId}/documents/${data.docId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationStatus: data.status, rejectionReason: data.rejectionReason }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed");
+      return json.document;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["profile-documents", employeeId],
-      });
+      qc.invalidateQueries({ queryKey: ["profile-documents", employeeId] });
+      toast.success("Document status updated.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
-};
+}

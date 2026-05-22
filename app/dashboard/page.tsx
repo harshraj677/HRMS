@@ -18,8 +18,12 @@ import {
 } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useLeaveRequests, useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
+import { useAnnouncements } from "@/hooks/useOrg";
+import { Megaphone, Pin } from "lucide-react";
 import { useTodayAttendance, useCheckIn, useCheckOut } from "@/hooks/useAttendance";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertBanner } from "@/components/ui/AlertBanner";
@@ -87,7 +91,36 @@ export default function DashboardPage() {
   const rejectLeave = useRejectLeave();
 
   const isAdmin = user?.role === "admin";
+  const userId = user?.id ? String(user.id) : "";
+  const { data: announcements } = useAnnouncements();
+  const latestAnnouncements = (announcements ?? []).slice(0, 3);
+  const { data: profile } = useProfile(userId);
   const pendingLeaves = leaveRequests?.filter((l: any) => l.status === "pending") ?? [];
+
+  const profileCompletion = !isAdmin ? calculateProfileCompletion({
+    fullName: user?.fullName,
+    email: (user as any)?.email,
+    phone: user?.phone,
+    dateOfBirth: (profile as any)?.dateOfBirth,
+    gender: (profile as any)?.gender,
+    nationality: (profile as any)?.nationality,
+    maritalStatus: (profile as any)?.maritalStatus,
+    addressLine1: (profile as any)?.addressLine1,
+    city: (profile as any)?.city,
+    state: (profile as any)?.state,
+    postalCode: (profile as any)?.postalCode,
+    country: (profile as any)?.country,
+    emergencyName: (profile as any)?.emergencyName,
+    emergencyPhone: (profile as any)?.emergencyPhone,
+    highestEducation: (profile as any)?.highestEducation,
+    institution: (profile as any)?.institution,
+    skills: (profile as any)?.skills,
+    certifications: (profile as any)?.certifications,
+    experience: (profile as any)?.experience,
+    avatar: (profile as any)?.avatar,
+    department: user?.department,
+    position: user?.position,
+  }) : 100;
   const today = format(new Date(), "EEEE, MMMM d");
   const firstName = user?.fullName?.split(" ")[0] ?? "";
   const { text: greetText, emoji } = getGreeting();
@@ -434,6 +467,44 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
+      {/* ── Employee: Profile completion card ───────────────────── */}
+      {!isAdmin && profileCompletion < 100 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Complete Your Profile</p>
+              <p className="text-xs text-slate-400 mt-0.5">Help your team know you better</p>
+            </div>
+            <Link href="/dashboard/profile"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
+              Update
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <motion.div
+                className={cn("h-full rounded-full",
+                  profileCompletion >= 80 ? "bg-emerald-500" : profileCompletion >= 50 ? "bg-amber-400" : "bg-indigo-500"
+                )}
+                initial={{ width: 0 }}
+                animate={{ width: `${profileCompletion}%` }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+              />
+            </div>
+            <span className={cn("text-sm font-bold shrink-0",
+              profileCompletion >= 80 ? "text-emerald-600" : profileCompletion >= 50 ? "text-amber-600" : "text-indigo-600"
+            )}>
+              {profileCompletion}%
+            </span>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Employee: quick links ────────────────────────────────── */}
       {!isAdmin && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -479,6 +550,41 @@ export default function DashboardPage() {
             );
           })}
         </div>
+      )}
+
+      {/* ── Announcements widget ────────────────────────────────── */}
+      {latestAnnouncements.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-indigo-500" />
+              <h3 className="text-sm font-semibold text-slate-900">Announcements</h3>
+            </div>
+            <Link href="/dashboard/announcements"
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {latestAnnouncements.map((a) => (
+              <div key={a.id} className="flex items-start gap-3 px-5 py-3.5">
+                {a.isPinned && <Pin className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">{a.title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{a.content}</p>
+                </div>
+                <span className="text-[10px] text-slate-400 shrink-0 mt-0.5">
+                  {new Date(a.createdAt).toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       )}
 
       {/* ── Employee: inspirational footer ──────────────────────── */}

@@ -42,9 +42,17 @@ import { cn, formatDate, getInitials } from "@/lib/utils";
 const leaveSchema = z.object({
   startDate: z.string().min(1, "Please select a start date"),
   endDate:   z.string().min(1, "Please select an end date"),
+  category:  z.enum(["casual","sick","earned","unpaid"]).default("casual"),
   reason:    z.string().min(10, "Reason must be at least 10 characters").max(300),
 });
 type LeaveFormData = z.infer<typeof leaveSchema>;
+
+const LEAVE_CATEGORIES = [
+  { value: "casual",  label: "Casual Leave" },
+  { value: "sick",    label: "Sick Leave" },
+  { value: "earned",  label: "Earned Leave" },
+  { value: "unpaid",  label: "Unpaid Leave" },
+];
 
 const statusMeta: Record<string, { label: string; icon: typeof Clock; cls: string; dot: string }> = {
   pending:  { label: "Pending",  icon: Clock,        cls: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-500"   },
@@ -179,6 +187,20 @@ export default function LeavePage() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Category */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Leave Category</Label>
+                <select
+                  aria-label="Leave category"
+                  className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...register("category")}
+                >
+                  {LEAVE_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Reason */}
               <div className="space-y-1.5">

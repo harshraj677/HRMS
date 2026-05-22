@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
       leaveBalance: true,
       status: true,
       createdAt: true,
+      reportingManagerId: true,
     },
     orderBy: { createdAt: "asc" },
   });

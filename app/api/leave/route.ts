@@ -23,8 +23,10 @@ export async function GET(req: NextRequest) {
     endDate: r.endDate,
     days: r.days,
     reason: r.reason,
+    category: r.category,
     status: r.status,
     approvedBy: r.approvedBy,
+    managerComment: r.managerComment,
     createdAt: r.createdAt,
     fullName: r.employee.fullName,
     department: r.employee.department,
@@ -77,6 +79,9 @@ export async function POST(req: NextRequest) {
     select: { fullName: true },
   });
 
+  const VALID_CATEGORIES = ["casual", "sick", "earned", "unpaid"];
+  const category = VALID_CATEGORIES.includes(body.category) ? body.category : "casual";
+
   await prisma.leaveRequest.create({
     data: {
       employeeId: payload.id,
@@ -84,6 +89,7 @@ export async function POST(req: NextRequest) {
       endDate: end,
       days,
       reason: body.reason.trim(),
+      category,
       status: "pending",
     },
   });

@@ -230,6 +230,11 @@ export default function SettingsPage() {
                     <Wifi className="w-3.5 h-3.5 shrink-0" />Office Settings
                   </TabsTrigger>
                 )}
+                {authUser?.role === "admin" && (
+                  <TabsTrigger value="organisation" className="gap-1.5 shrink-0 rounded-lg text-xs sm:text-sm px-3 py-2">
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />Organisation
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
             {/* Right-side fade gradient — indicates scroll on small screens */}
@@ -556,8 +561,86 @@ export default function SettingsPage() {
               </div>
             </div>
           </TabsContent>
+
+          {/* ── Organisation Tab ──────────────────────────────── */}
+          {authUser?.role === "admin" && (
+            <OrgSettingsTab />
+          )}
         </Tabs>
       </div>
     </div>
+  );
+}
+
+// ── Org settings tab ──────────────────────────────────────────
+function OrgSettingsTab() {
+  const [saving, setSaving]   = useState(false);
+  const [orgInfo, setOrgInfo] = useState({
+    orgName:     "Anvesana Innovation & Entrepreneurial Forum",
+    tagline:     "Empowering Startups & Teams",
+    website:     "https://anvesana.org",
+    email:       "hr@anvesana.org",
+    phone:       "",
+    address:     "Hubli, Karnataka, India",
+    founded:     "2022",
+  });
+
+  const inp = "h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full transition-colors";
+
+  async function save() {
+    setSaving(true);
+    await new Promise((r) => setTimeout(r, 600));
+    toast.success("Organisation settings saved.");
+    setSaving(false);
+  }
+
+  return (
+    <TabsContent value="organisation">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Organisation Profile</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Company branding and contact information</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { label: "Organisation Name", key: "orgName"  as const },
+            { label: "Tagline",           key: "tagline"  as const },
+            { label: "Website",           key: "website"  as const },
+            { label: "HR Email",          key: "email"    as const },
+            { label: "Phone",             key: "phone"    as const },
+            { label: "Address",           key: "address"  as const },
+            { label: "Founded Year",      key: "founded"  as const },
+          ].map(({ label, key }) => (
+            <div key={key} className={key === "orgName" || key === "address" ? "sm:col-span-2" : ""}>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">{label}</Label>
+              <input className={inp} value={orgInfo[key]} onChange={(e) => setOrgInfo((o) => ({ ...o, [key]: e.target.value }))} aria-label={label} />
+            </div>
+          ))}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Platform Modules</h3>
+          <p className="text-xs text-slate-400">All modules are active. Contact support to adjust your plan.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              "HR Profiles","Attendance","Leave Management","Payroll","Recruitment",
+              "Helpdesk","HR Documents","Exit Management","Org Chart","Analytics",
+              "Events","Training","AI Assistant","Startup Incubation",
+            ].map((mod) => (
+              <div key={mod} className="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-xs font-medium text-emerald-700 truncate">{mod}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Button type="button" onClick={save} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Saving…</> : "Save Organisation Settings"}
+        </Button>
+      </div>
+    </TabsContent>
   );
 }

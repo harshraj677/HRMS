@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "@/contexts/SidebarContext";
@@ -18,6 +19,26 @@ import {
   MapPin,
   FileText,
   Rocket,
+  Banknote,
+  Receipt,
+  Building2,
+  Network,
+  BookUser,
+  Megaphone,
+  UsersRound,
+  BriefcaseBusiness,
+  HeadphonesIcon,
+  FolderOpen,
+  LogOut as ExitIcon,
+  GitMerge,
+  TicketIcon,
+  Activity,
+  ShieldCheck,
+  Bot,
+  Calendar,
+  GraduationCap,
+  ServerIcon,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,15 +64,59 @@ function getNavItems(role: string) {
         ],
       },
       {
+        group: "Organisation",
+        items: [
+          { label: "Departments",   href: "/dashboard/departments",  icon: Building2 },
+          { label: "Org Chart",     href: "/dashboard/org-chart",    icon: Network },
+          { label: "Directory",     href: "/dashboard/directory",    icon: BookUser },
+          { label: "My Team",       href: "/dashboard/my-team",      icon: UsersRound },
+          { label: "Announcements", href: "/dashboard/announcements",icon: Megaphone },
+        ],
+      },
+      {
+        group: "Payroll",
+        items: [
+          { label: "Payroll",          href: "/dashboard/payroll",          icon: Banknote },
+          { label: "Generate Payroll", href: "/dashboard/payroll/generate", icon: Receipt },
+        ],
+      },
+      {
+        group: "Recruitment",
+        items: [
+          { label: "Recruitment",   href: "/dashboard/recruitment",  icon: BriefcaseBusiness },
+          { label: "HR Documents",  href: "/dashboard/hr-documents", icon: FolderOpen },
+          { label: "Helpdesk",      href: "/dashboard/helpdesk",     icon: HeadphonesIcon },
+          { label: "Exit Mgmt",     href: "/dashboard/exits",        icon: ExitIcon },
+        ],
+      },
+      {
         group: "Incubation",
         items: [
-          { label: "Startups", href: "/dashboard/startups", icon: Rocket },
+          { label: "Startups",   href: "/dashboard/startups", icon: Rocket },
+          { label: "Events",     href: "/dashboard/events",   icon: Calendar },
+          { label: "Training",   href: "/dashboard/training", icon: GraduationCap },
         ],
       },
       {
         group: "Insights",
         items: [
-          { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+          { label: "Analytics",      href: "/dashboard/analytics",      icon: BarChart3 },
+          { label: "Reports",        href: "/dashboard/reports",        icon: FileText },
+          { label: "Activity Logs",  href: "/dashboard/activity-logs",  icon: Activity },
+          { label: "System Health",  href: "/dashboard/system-health",  icon: ServerIcon },
+        ],
+      },
+      {
+        group: "AI",
+        items: [
+          { label: "AI Assistant",  href: "/dashboard/ai-assistant", icon: Bot },
+          { label: "AI Insights",   href: "/dashboard/ai-insights",  icon: Sparkles },
+        ],
+      },
+      {
+        group: "Mentoring",
+        items: [
+          { label: "Mentor Reviews", href: "/dashboard/mentor", icon: Star },
         ],
       },
       {
@@ -73,15 +138,37 @@ function getNavItems(role: string) {
     {
       group: "My Work",
       items: [
-        { label: "My Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-        { label: "My Leave Requests", href: "/dashboard/leave", icon: ClipboardList },
-        { label: "Apply Leave", href: "/dashboard/leave?apply=1", icon: FileText },
+        { label: "My Attendance",    href: "/dashboard/attendance",     icon: CalendarCheck },
+        { label: "My Leave Requests",href: "/dashboard/leave",          icon: ClipboardList },
+        { label: "Apply Leave",      href: "/dashboard/leave?apply=1",  icon: FileText },
+        { label: "My Payroll",       href: "/dashboard/my-payroll",     icon: Banknote },
+      ],
+    },
+    {
+      group: "Company",
+      items: [
+        { label: "Directory",      href: "/dashboard/directory",     icon: BookUser },
+        { label: "Org Chart",      href: "/dashboard/org-chart",     icon: Network },
+        { label: "Announcements",  href: "/dashboard/announcements", icon: Megaphone },
+        { label: "HR Documents",   href: "/dashboard/hr-documents",  icon: FolderOpen },
+        { label: "Events",         href: "/dashboard/events",        icon: Calendar },
+        { label: "Training",       href: "/dashboard/training",      icon: GraduationCap },
+        { label: "My Referrals",   href: "/dashboard/my-referrals",  icon: GitMerge },
+        { label: "Tickets",        href: "/dashboard/tickets",       icon: TicketIcon },
+        { label: "Resignation",    href: "/dashboard/resignation",   icon: ExitIcon },
+      ],
+    },
+    {
+      group: "AI",
+      items: [
+        { label: "AI Assistant", href: "/dashboard/ai-assistant", icon: Bot },
       ],
     },
     {
       group: "Account",
       items: [
-        { label: "Profile", href: "/dashboard/profile", icon: UserCircle },
+        { label: "Profile",  href: "/dashboard/profile",  icon: UserCircle },
+        { label: "Security", href: "/dashboard/security", icon: ShieldCheck },
       ],
     },
   ];
@@ -137,37 +224,41 @@ export function Sidebar() {
                   (item.href !== "/dashboard" && pathname.startsWith(item.href));
                 const Icon = item.icon;
 
-                return collapsed ? (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
+                return (
+                  <Fragment key={item.href}>
+                    {collapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={item.href}>
+                            <div className={cn(
+                              "flex items-center justify-center w-10 h-10 mx-auto rounded-xl mb-1 transition-colors duration-150",
+                              isActive
+                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                                : "text-slate-400 hover:bg-white/10 hover:text-white"
+                            )}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{item.label}</TooltipContent>
+                      </Tooltip>
+                    ) : (
                       <Link href={item.href}>
                         <div className={cn(
-                          "flex items-center justify-center w-10 h-10 mx-auto rounded-xl mb-1 transition-colors duration-150",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
                           isActive
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                             : "text-slate-400 hover:bg-white/10 hover:text-white"
                         )}>
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-[18px] h-[18px] shrink-0" />
+                          <span>{item.label}</span>
+                          {isActive && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />
+                          )}
                         </div>
                       </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{item.label}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Link key={item.href} href={item.href}>
-                    <div className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
-                      isActive
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                        : "text-slate-400 hover:bg-white/10 hover:text-white"
-                    )}>
-                      <Icon className="w-[18px] h-[18px] shrink-0" />
-                      <span>{item.label}</span>
-                      {isActive && (
-                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />
-                      )}
-                    </div>
-                  </Link>
+                    )}
+                  </Fragment>
                 );
               })}
             </div>
