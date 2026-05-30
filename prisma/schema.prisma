@@ -47,6 +47,10 @@ model Attendance {
   ipAddress          String?
   device             String?
   distanceFromOffice Float?
+  checkInPhoto       String?
+  checkOutPhoto      String?
+  checkInAccuracy    Float?
+  checkOutAccuracy   Float?
   deletedAt          DateTime?
   createdAt          DateTime  @default(now())
 

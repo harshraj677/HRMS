@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
+  const body = await req.json().catch(() => null);
+  const photo = typeof body?.photo === "string" && body.photo.length > 0 ? body.photo : null;
+  const accuracy = body?.accuracy != null ? Number(body.accuracy) : null;
+
   const now = new Date();
   const todayDate = new Date(now.toISOString().slice(0, 10) + "T00:00:00.000Z");
 
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.attendance.update({
     where: { id: record.id },
-    data: { checkOut: now, hours },
+    data: { checkOut: now, hours, checkOutPhoto: photo, checkOutAccuracy: accuracy },
   });
 
   return NextResponse.json({

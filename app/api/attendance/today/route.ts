@@ -45,5 +45,7 @@ export async function GET(req: NextRequest) {
     hours,
     status: currentStatus,
     distanceFromOffice: record.distanceFromOffice,
+    checkInPhoto: record.checkInPhoto ?? null,
+    checkOutPhoto: record.checkOutPhoto ?? null,
   });
 }

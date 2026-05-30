@@ -42,6 +42,10 @@ export async function GET(req: NextRequest) {
     ipAddress: payload.role === "admin" ? r.ipAddress : undefined,
     device: payload.role === "admin" ? r.device : undefined,
     distanceFromOffice: r.distanceFromOffice,
+    checkInPhoto: r.checkInPhoto ?? null,
+    checkOutPhoto: r.checkOutPhoto ?? null,
+    checkInAccuracy: r.checkInAccuracy ?? null,
+    checkOutAccuracy: r.checkOutAccuracy ?? null,
     fullName: r.employee.fullName,
   }));
 
