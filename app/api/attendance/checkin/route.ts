@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { isWithinGeofence, getAttendanceStatus, OFFICE_LOCATION } from "@/lib/geofence";
+import { evaluatePolicy } from "@/lib/policyEngine";
+import { getDefaultLivenessAdapter, shouldBlockOnLiveness, shouldFlagLiveness } from "@/lib/livenessAdapter";
+import type { LivenessClientEvidence, LivenessEnforcement, LivenessResult } from "@/lib/livenessAdapter";
 
 const DEFAULT_OFFICE = {
   wifiName: "",
@@ -23,6 +26,25 @@ export async function POST(req: NextRequest) {
   const longitude = body?.longitude != null ? Number(body.longitude) : null;
   const accuracy = body?.accuracy != null ? Number(body.accuracy) : null;
   const photo = typeof body?.photo === "string" && body.photo.length > 0 ? body.photo : null;
+  const overrideRequested = body?.overrideRequested === true;
+  const overrideNote = typeof body?.overrideNote === "string" ? body.overrideNote.trim() : null;
+
+  // Phase 4 — liveness evidence from client
+  const rawLiveness = body?.livenessEvidence ?? null;
+  const livenessEvidence: LivenessClientEvidence | null =
+    rawLiveness &&
+    typeof rawLiveness.frameCount === "number" &&
+    typeof rawLiveness.maxFrameDiff === "number" &&
+    Array.isArray(rawLiveness.diffs)
+      ? (rawLiveness as LivenessClientEvidence)
+      : null;
+
+  // Face verification result from client
+  const faceV = body?.faceVerification ?? null;
+  const faceScore: number | null = typeof faceV?.confidence === "number" ? faceV.confidence : null;
+  const faceVerified: boolean | null = typeof faceV?.verified === "boolean" ? faceV.verified : null;
+  const faceMethod: string | null = typeof faceV?.method === "string" ? faceV.method : null;
+  const needsReview: boolean = faceV?.needsReview === true;
 
   if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
     return NextResponse.json(
@@ -73,28 +95,84 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // CHECK 3 — GPS distance / geofence (using DB office location)
-  const geoCheck = isWithinGeofence(
+  // CHECK 3 — Policy engine (Phase 3) or legacy single-circle geofence (fallback)
+  const policyEval = await evaluatePolicy({
     latitude,
     longitude,
-    officeSettings.latitude,
-    officeSettings.longitude,
+    faceVerified,
+    faceScore,
+    overrideRequested,
+  });
+
+  // Legacy geofence distance (always computed for distanceFromOffice column)
+  const legacyGeo = isWithinGeofence(
+    latitude, longitude,
+    officeSettings.latitude, officeSettings.longitude,
     officeSettings.radiusMeters
   );
 
-  if (!geoCheck.allowed) {
+  if (policyEval.status === "blocked") {
+    await prisma.suspiciousLog.create({
+      data: {
+        employeeId: payload.id,
+        type: "policy_block",
+        description: `Check-in blocked by policy "${policyEval.policyName ?? "default"}": ${policyEval.blockReason}`,
+        ipAddress: getClientIP(req),
+      },
+    });
+    return NextResponse.json(
+      {
+        error: policyEval.blockReason ?? "Check-in blocked by attendance policy.",
+        policyResult: policyEval,
+        overrideAllowed: policyEval.manualOverrideAllowed,
+      },
+      { status: 403 }
+    );
+  }
+
+  // If Phase 3 is disabled (policyEval returns legacy "ok") still enforce the old hard circle
+  if (policyEval.enforcementMode === "legacy" && !legacyGeo.allowed) {
     await prisma.suspiciousLog.create({
       data: {
         employeeId: payload.id,
         type: "geofence_violation",
-        description: `Attempted check-in from ${geoCheck.distance}m away from office (limit: ${officeSettings.radiusMeters}m). Lat: ${latitude}, Lng: ${longitude}`,
+        description: `Attempted check-in from ${legacyGeo.distance}m away from office (limit: ${officeSettings.radiusMeters}m).`,
         ipAddress: getClientIP(req),
       },
     });
     return NextResponse.json(
       {
         error: `Check-in failed: You must be within ${officeSettings.radiusMeters} meters of the office to check in.`,
-        distance: geoCheck.distance,
+        distance: legacyGeo.distance,
+      },
+      { status: 403 }
+    );
+  }
+
+  // ── Phase 4: liveness evaluation ─────────────────────────────────────────
+  const livenessEnforcementRec = await prisma.settings.findUnique({ where: { key: "liveness_enforcement" } });
+  const livenessEnforcement: LivenessEnforcement =
+    ((livenessEnforcementRec?.value as { level?: string } | null)?.level as LivenessEnforcement) ?? "off";
+
+  let livenessResult: LivenessResult = { result: "unknown", score: 0, method: "none", reason: "No evidence provided" };
+  if (livenessEvidence) {
+    livenessResult = await getDefaultLivenessAdapter().verify(livenessEvidence);
+  }
+
+  if (shouldBlockOnLiveness(livenessResult, livenessEnforcement)) {
+    await prisma.suspiciousLog.create({
+      data: {
+        employeeId: payload.id,
+        type: "liveness_failed",
+        description: `Liveness check blocked check-in: ${livenessResult.reason ?? "score too low"} (score ${livenessResult.score})`,
+        ipAddress: getClientIP(req),
+      },
+    });
+    return NextResponse.json(
+      {
+        error: `Liveness check failed: ${livenessResult.reason ?? "Please try again and blink naturally during the countdown."}`,
+        livenessResult,
+        livenessRetryAllowed: true,
       },
       { status: 403 }
     );
@@ -118,7 +196,10 @@ export async function POST(req: NextRequest) {
   const device = req.headers.get("user-agent") || null;
   const status = getAttendanceStatus(now);
 
-  await prisma.attendance.create({
+  const livenessFlagged = shouldFlagLiveness(livenessResult, livenessEnforcement);
+  const combinedNeedsReview = needsReview || policyEval.addNeedsReview || livenessFlagged;
+
+  const created = await prisma.attendance.create({
     data: {
       employeeId: payload.id,
       date: todayDate,
@@ -128,18 +209,74 @@ export async function POST(req: NextRequest) {
       longitude,
       ipAddress,
       device,
-      distanceFromOffice: geoCheck.distance,
+      distanceFromOffice: policyEval.distanceMeters ?? legacyGeo.distance,
       checkInPhoto: photo,
       checkInAccuracy: accuracy,
+      faceScore,
+      faceVerified,
+      faceVerifiedAt: faceV ? new Date() : null,
+      faceVerificationMethod: faceMethod,
+      needsReview: combinedNeedsReview,
+      // Phase 3 policy fields
+      policyId: policyEval.policyId,
+      policyResult: {
+        status: policyEval.status,
+        distanceMeters: policyEval.distanceMeters,
+        geofenceId: policyEval.geofenceId,
+        geofenceName: policyEval.geofenceName,
+        isRemote: policyEval.isRemote,
+        policyName: policyEval.policyName,
+        enforcementMode: policyEval.enforcementMode,
+        message: policyEval.message,
+      },
+      policyEvaluatedAt: new Date(),
+      isRemote: policyEval.isRemote,
+      manualOverride: overrideRequested && policyEval.manualOverrideAllowed,
+      overrideNote: overrideRequested ? overrideNote : null,
+      // Phase 4 liveness
+      livenessResult: livenessEvidence ? livenessResult.result : null,
+      livenessScore: livenessEvidence ? livenessResult.score : null,
+      livenessMethod: livenessEvidence ? livenessResult.method : null,
+      livenessCheckedAt: livenessEvidence ? new Date() : null,
+      livenessChallengeType: livenessEvidence?.challengeType ?? null,
+      livenessFrameCount: livenessEvidence?.frameCount ?? null,
+      livenessMaxDiff: livenessEvidence?.maxFrameDiff ?? null,
+      livenessAvgDiff: livenessEvidence?.avgFrameDiff ?? null,
     },
+    select: { id: true },
   });
+
+  // Fire-and-forget attendance audit entry
+  try {
+    const { fireAttendanceAudit } = await import("@/lib/attendanceAudit");
+    fireAttendanceAudit({
+      attendanceId: created.id,
+      actorId: payload.id,
+      action: "created",
+      metadata: {
+        latitude,
+        longitude,
+        faceScore,
+        faceVerified,
+        policyResult: policyEval,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to schedule attendance audit:", err);
+  }
 
   return NextResponse.json(
     {
-      message: "Checked in successfully.",
+      message: policyEval.message || "Checked in successfully.",
       checkIn: now.toISOString(),
       status,
-      distance: geoCheck.distance,
+      distance: policyEval.distanceMeters ?? legacyGeo.distance,
+      policyResult: {
+        status: policyEval.status,
+        isRemote: policyEval.isRemote,
+        geofenceName: policyEval.geofenceName,
+        message: policyEval.message,
+      },
     },
     { status: 201 }
   );
