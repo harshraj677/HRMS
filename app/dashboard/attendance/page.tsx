@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -13,10 +13,12 @@ import {
   Shield,
   Smartphone,
   CalendarDays,
+  Camera,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -29,7 +31,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTodayAttendance, useAttendanceHistory, useCheckIn, useCheckOut } from "@/hooks/useAttendance";
 import { useAuth } from "@/hooks/useAuth";
 import { AlertBanner } from "@/components/ui/AlertBanner";
+import { AttendanceCaptureModal } from "@/components/attendance/AttendanceCaptureModal";
 import { cn, formatDate, getInitials } from "@/lib/utils";
+import { format } from "date-fns";
+import type { AttendanceEvidence } from "@/hooks/useAttendance";
 
 function parseCheckError(msg: string): { title: string; message: string } {
   const colonIdx = msg.indexOf(": ");
@@ -38,12 +43,11 @@ function parseCheckError(msg: string): { title: string; message: string } {
   }
   return { title: "Check-in failed", message: msg };
 }
-import { format } from "date-fns";
 
 const statusConfig: Record<string, { label: string; cls: string; dot: string }> = {
   present: { label: "On Time", cls: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  late:    { label: "Late",    cls: "bg-amber-100 text-amber-700 border-amber-200",   dot: "bg-amber-500"   },
-  absent:  { label: "Absent",  cls: "bg-red-100 text-red-700 border-red-200",          dot: "bg-red-500"     },
+  late:    { label: "Late",    cls: "bg-amber-100 text-amber-700 border-amber-200",        dot: "bg-amber-500"  },
+  absent:  { label: "Absent",  cls: "bg-red-100 text-red-700 border-red-200",              dot: "bg-red-500"    },
 };
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -54,6 +58,48 @@ function StatusBadge({ status }: { status: string | null }) {
       <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
       {cfg.label}
     </span>
+  );
+}
+
+/** Tiny photo thumbnail — click to open full-size overlay. */
+function PhotoThumb({ src, label }: { src: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="shrink-0 w-8 h-6 rounded overflow-hidden border border-slate-200 hover:border-indigo-400 transition-colors"
+        title={label}
+      >
+        <img src={src} alt={label} className="w-full h-full object-cover" />
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={src}
+              alt={label}
+              className="max-w-xs max-h-[60vh] rounded-xl shadow-2xl object-cover"
+            />
+            <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+              {label}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -69,11 +115,24 @@ export default function AttendancePage() {
   const [now, setNow] = useState<Date | null>(null);
   const [alertHidden, setAlertHidden] = useState(false);
 
+  // Capture modal state
+  const [captureModal, setCaptureModal] = useState<{ open: boolean; type: "checkin" | "checkout" }>({
+    open: false,
+    type: "checkin",
+  });
+
   const activeError = (checkIn.error ?? checkOut.error) as Error | null;
 
   useEffect(() => {
     if (checkIn.isPending || checkOut.isPending) setAlertHidden(false);
   }, [checkIn.isPending, checkOut.isPending]);
+
+  // Close the capture modal automatically on success
+  useEffect(() => {
+    if (checkIn.isSuccess || checkOut.isSuccess) {
+      setCaptureModal((s) => ({ ...s, open: false }));
+    }
+  }, [checkIn.isSuccess, checkOut.isSuccess]);
 
   const alertData = activeError && !alertHidden
     ? parseCheckError(activeError.message)
@@ -96,21 +155,29 @@ export default function AttendancePage() {
     iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–";
 
   const miniStats = [
-    { label: "Check In",    value: fmtTime(today?.checkIn),  icon: LogIn,        color: "emerald", bg: "bg-emerald-50", text: "text-emerald-600" },
-    { label: "Check Out",   value: fmtTime(today?.checkOut), icon: LogOut,       color: "blue",    bg: "bg-blue-50",    text: "text-blue-600"    },
-    { label: "Hours Today", value: today?.hours != null ? `${today.hours}h` : "–", icon: Timer, color: "indigo", bg: "bg-indigo-50", text: "text-indigo-600" },
-    { label: "Status",      value: today?.status ?? "Pending", icon: CheckCircle2, color: "violet", bg: "bg-violet-50", text: "text-violet-600" },
+    { label: "Check In",    value: fmtTime(today?.checkIn),  icon: LogIn,        bg: "bg-emerald-50", text: "text-emerald-600" },
+    { label: "Check Out",   value: fmtTime(today?.checkOut), icon: LogOut,       bg: "bg-blue-50",    text: "text-blue-600"    },
+    { label: "Hours Today", value: today?.hours != null ? `${today.hours}h` : "–", icon: Timer, bg: "bg-indigo-50", text: "text-indigo-600" },
+    { label: "Status",      value: today?.status ?? "Pending", icon: CheckCircle2, bg: "bg-violet-50", text: "text-violet-600" },
   ];
+
+  const handleCaptureConfirm = (evidence: AttendanceEvidence) => {
+    if (captureModal.type === "checkin") {
+      checkIn.mutate(evidence);
+    } else {
+      checkOut.mutate(evidence);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* ── Page header ──────────────────────────────────────────── */}
+      {/* ── Page header ───────────────────────────────────────────── */}
       <div>
         <h2 className="text-xl font-bold text-slate-900">Attendance</h2>
         <p className="text-sm text-slate-500 mt-0.5">{currentDate}</p>
       </div>
 
-      {/* ── Check-in / Check-out error banner ────────────────────── */}
+      {/* ── Error banner ──────────────────────────────────────────── */}
       {alertData && (
         <AlertBanner
           type="error"
@@ -121,7 +188,7 @@ export default function AttendancePage() {
         />
       )}
 
-      {/* ── Today's status: 3-col grid ───────────────────────────── */}
+      {/* ── Today's status: 3-col grid ────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Check-in / Check-out card */}
@@ -130,7 +197,7 @@ export default function AttendancePage() {
           animate={{ opacity: 1, y: 0 }}
           className="lg:col-span-1 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col"
         >
-          {/* Analog clock display */}
+          {/* Clock display */}
           <div className="flex flex-col items-center mb-6">
             <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-indigo-50 to-violet-100 flex items-center justify-center mb-3 shadow-inner">
               <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
@@ -157,7 +224,7 @@ export default function AttendancePage() {
               {!hasCheckedIn ? (
                 <>
                   <p className="text-sm font-semibold text-slate-600">Not Checked In</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Location will be verified</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Selfie &amp; location required</p>
                 </>
               ) : !hasCheckedOut ? (
                 <>
@@ -183,6 +250,12 @@ export default function AttendancePage() {
                       {Math.round(today.distanceFromOffice)}m from office
                     </p>
                   )}
+                  {/* Today's check-in selfie thumbnail */}
+                  {today?.checkInPhoto && (
+                    <div className="mt-2 flex justify-center">
+                      <PhotoThumb src={today.checkInPhoto} label="Check-in selfie" />
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -195,12 +268,19 @@ export default function AttendancePage() {
                       <StatusBadge status={today.status} />
                     </div>
                   )}
+                  {/* Today's photos row */}
+                  {(today?.checkInPhoto || today?.checkOutPhoto) && (
+                    <div className="mt-2 flex justify-center gap-2">
+                      {today.checkInPhoto && <PhotoThumb src={today.checkInPhoto} label="Check-in selfie" />}
+                      {today.checkOutPhoto && <PhotoThumb src={today.checkOutPhoto} label="Check-out selfie" />}
+                    </div>
+                  )}
                 </>
               )}
             </div>
           )}
 
-          {/* Action buttons */}
+          {/* Action buttons — open capture modal instead of direct mutation */}
           <div className="space-y-2.5 mt-auto">
             <button
               type="button"
@@ -211,12 +291,12 @@ export default function AttendancePage() {
                 "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               )}
               disabled={hasCheckedIn || checkIn.isPending}
-              onClick={() => checkIn.mutate()}
+              onClick={() => setCaptureModal({ open: true, type: "checkin" })}
             >
               {checkIn.isPending ? (
-                <><Clock className="w-4 h-4 animate-spin" /> Getting location…</>
+                <><Clock className="w-4 h-4 animate-spin" /> Submitting…</>
               ) : (
-                <><LogIn className="w-4 h-4" /> Check In</>
+                <><Camera className="w-4 h-4" /> Check In</>
               )}
             </button>
             <button
@@ -228,22 +308,22 @@ export default function AttendancePage() {
                 "disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               )}
               disabled={!hasCheckedIn || hasCheckedOut || checkOut.isPending}
-              onClick={() => checkOut.mutate()}
+              onClick={() => setCaptureModal({ open: true, type: "checkout" })}
             >
               {checkOut.isPending ? (
-                <><Clock className="w-4 h-4 animate-spin" /> Checking out…</>
+                <><Clock className="w-4 h-4 animate-spin" /> Submitting…</>
               ) : (
-                <><LogOut className="w-4 h-4" /> Check Out</>
+                <><Camera className="w-4 h-4" /> Check Out</>
               )}
             </button>
           </div>
 
           <p className="text-[10px] text-slate-400 text-center mt-3 flex items-center justify-center gap-1">
-            <Shield className="w-3 h-3" /> Location &amp; device verified on check-in
+            <Shield className="w-3 h-3" /> Selfie &amp; GPS verified on check-in
           </p>
         </motion.div>
 
-        {/* Mini stat cards (2×2 grid) */}
+        {/* Mini stat cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -265,7 +345,7 @@ export default function AttendancePage() {
         </motion.div>
       </div>
 
-      {/* ── Attendance history ────────────────────────────────────── */}
+      {/* ── Attendance history ─────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -287,13 +367,11 @@ export default function AttendancePage() {
 
         {historyLoading ? (
           <div className="p-5 space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-xl" />
-            ))}
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
           </div>
         ) : (
           <>
-            {/* ── Mobile card view (hidden md+) ──────────────────── */}
+            {/* ── Mobile card view ─────────────────────────────────── */}
             <div className="md:hidden divide-y divide-slate-50">
               {history?.length === 0 && (
                 <div className="flex flex-col items-center py-12 text-center px-6">
@@ -318,71 +396,58 @@ export default function AttendancePage() {
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-semibold text-slate-800">{record.fullName}</span>
-                      <div className="ml-auto">
-                        <StatusBadge status={record.status} />
-                      </div>
+                      <div className="ml-auto"><StatusBadge status={record.status} /></div>
                     </div>
                   )}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{formatDate(record.date)}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-slate-500">
-                          <span className="text-slate-400">In</span> {fmtTime(record.checkIn)}
-                        </span>
+                        <span className="text-xs text-slate-500"><span className="text-slate-400">In</span> {fmtTime(record.checkIn)}</span>
                         <span className="text-slate-200">·</span>
-                        <span className="text-xs text-slate-500">
-                          <span className="text-slate-400">Out</span> {fmtTime(record.checkOut)}
-                        </span>
+                        <span className="text-xs text-slate-500"><span className="text-slate-400">Out</span> {fmtTime(record.checkOut)}</span>
                         {record.hours != null && (
-                          <>
-                            <span className="text-slate-200">·</span>
-                            <span className="text-xs font-medium text-indigo-600">{record.hours}h</span>
-                          </>
+                          <><span className="text-slate-200">·</span><span className="text-xs font-medium text-indigo-600">{record.hours}h</span></>
                         )}
                       </div>
                       {isAdmin && record.distanceFromOffice != null && (
-                        <p className={cn(
-                          "text-[11px] mt-1.5 flex items-center gap-1 font-medium",
-                          record.distanceFromOffice <= 200 ? "text-emerald-600" : "text-red-500"
-                        )}>
+                        <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-medium",
+                          record.distanceFromOffice <= 200 ? "text-emerald-600" : "text-red-500")}>
                           <MapPin className="w-3 h-3" />
                           {Math.round(record.distanceFromOffice)}m from office
                           {record.distanceFromOffice > 200 && <AlertTriangle className="w-3 h-3" />}
                         </p>
                       )}
                     </div>
-                    {!isAdmin && <StatusBadge status={record.status} />}
+                    <div className="flex flex-col items-end gap-1.5">
+                      {!isAdmin && <StatusBadge status={record.status} />}
+                      {/* Photo evidence thumbnails */}
+                      {(record.checkInPhoto || record.checkOutPhoto) && (
+                        <div className="flex gap-1">
+                          {record.checkInPhoto && <PhotoThumb src={record.checkInPhoto} label="Check-in selfie" />}
+                          {record.checkOutPhoto && <PhotoThumb src={record.checkOutPhoto} label="Check-out selfie" />}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
 
-            {/* ── Desktop table view (hidden below md) ───────────── */}
+            {/* ── Desktop table view ───────────────────────────────── */}
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                    {isAdmin && (
-                      <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        Employee
-                      </TableHead>
-                    )}
+                    {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Employee</TableHead>}
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date</TableHead>
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Check In</TableHead>
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:table-cell">Check Out</TableHead>
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell">Hours</TableHead>
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</TableHead>
-                    {isAdmin && (
-                      <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">
-                        Distance
-                      </TableHead>
-                    )}
-                    {isAdmin && (
-                      <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden xl:table-cell">
-                        Device
-                      </TableHead>
-                    )}
+                    {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Distance</TableHead>}
+                    <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Evidence</TableHead>
+                    {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden xl:table-cell">Device</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -412,21 +477,15 @@ export default function AttendancePage() {
                       <TableCell className="text-sm text-slate-600 hidden md:table-cell font-medium">
                         {record.hours != null ? `${record.hours}h` : "–"}
                       </TableCell>
-                      <TableCell>
-                        <StatusBadge status={record.status} />
-                      </TableCell>
+                      <TableCell><StatusBadge status={record.status} /></TableCell>
                       {isAdmin && (
                         <TableCell className="hidden lg:table-cell">
                           {record.distanceFromOffice != null ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span
-                                    className={cn(
-                                      "text-xs font-semibold inline-flex items-center gap-1",
-                                      record.distanceFromOffice <= 200 ? "text-emerald-600" : "text-red-500"
-                                    )}
-                                  >
+                                  <span className={cn("text-xs font-semibold inline-flex items-center gap-1",
+                                    record.distanceFromOffice <= 200 ? "text-emerald-600" : "text-red-500")}>
                                     <MapPin className="w-3 h-3" />
                                     {Math.round(record.distanceFromOffice)}m
                                     {record.distanceFromOffice > 200 && <AlertTriangle className="w-3 h-3" />}
@@ -445,6 +504,37 @@ export default function AttendancePage() {
                           )}
                         </TableCell>
                       )}
+                      {/* Evidence column: check-in & check-out photo thumbnails */}
+                      <TableCell className="hidden lg:table-cell">
+                        {(record.checkInPhoto || record.checkOutPhoto) ? (
+                          <div className="flex items-center gap-1.5">
+                            {record.checkInPhoto && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span><PhotoThumb src={record.checkInPhoto} label="Check-in selfie" /></span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Check-in selfie</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {record.checkOutPhoto && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span><PhotoThumb src={record.checkOutPhoto} label="Check-out selfie" /></span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Check-out selfie</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300 flex items-center gap-1">
+                            <Camera className="w-3 h-3" /> –
+                          </span>
+                        )}
+                      </TableCell>
                       {isAdmin && (
                         <TableCell className="hidden xl:table-cell">
                           {record.device ? (
@@ -461,10 +551,7 @@ export default function AttendancePage() {
                   ))}
                   {(!history || history.length === 0) && (
                     <TableRow>
-                      <TableCell
-                        colSpan={isAdmin ? 8 : 5}
-                        className="text-center py-14"
-                      >
+                      <TableCell colSpan={isAdmin ? 9 : 6} className="text-center py-14">
                         <CalendarDays className="w-10 h-10 text-slate-200 mx-auto mb-3" />
                         <p className="text-sm text-slate-400">No attendance records found</p>
                       </TableCell>
@@ -476,6 +563,15 @@ export default function AttendancePage() {
           </>
         )}
       </motion.div>
+
+      {/* ── Capture modal ─────────────────────────────────────────── */}
+      <AttendanceCaptureModal
+        type={captureModal.type}
+        isOpen={captureModal.open}
+        onClose={() => setCaptureModal((s) => ({ ...s, open: false }))}
+        onConfirm={handleCaptureConfirm}
+        isPending={checkIn.isPending || checkOut.isPending}
+      />
     </div>
   );
 }

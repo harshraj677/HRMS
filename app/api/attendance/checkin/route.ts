@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
 
   const latitude = body?.latitude != null ? Number(body.latitude) : null;
   const longitude = body?.longitude != null ? Number(body.longitude) : null;
+  const accuracy = body?.accuracy != null ? Number(body.accuracy) : null;
+  const photo = typeof body?.photo === "string" && body.photo.length > 0 ? body.photo : null;
 
   if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
     return NextResponse.json(
@@ -127,6 +129,8 @@ export async function POST(req: NextRequest) {
       ipAddress,
       device,
       distanceFromOffice: geoCheck.distance,
+      checkInPhoto: photo,
+      checkInAccuracy: accuracy,
     },
   });
 

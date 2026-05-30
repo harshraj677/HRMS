@@ -295,7 +295,7 @@ export default function DashboardPage() {
             <button
               type="button"
               disabled={hasCheckedIn || checkIn.isPending}
-              onClick={() => checkIn.mutate()}
+              onClick={() => checkIn.mutate(undefined)}
               className={cn(
                 "flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold transition-all",
                 "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25",
@@ -316,7 +316,7 @@ export default function DashboardPage() {
             <button
               type="button"
               disabled={!hasCheckedIn || hasCheckedOut || checkOut.isPending}
-              onClick={() => checkOut.mutate()}
+              onClick={() => checkOut.mutate(undefined)}
               className={cn(
                 "flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold border transition-all",
                 "bg-white border-slate-200 text-slate-700",
