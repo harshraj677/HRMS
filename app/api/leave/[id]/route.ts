@@ -13,8 +13,7 @@ export async function PUT(
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const { id } = await params;
-  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
-  if (!caller || caller.role !== "admin")
+  if (payload.role !== "admin")
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   const body = await req.json().catch(() => null);
   if (!body?.action || !["approve", "reject"].includes(body.action)) {

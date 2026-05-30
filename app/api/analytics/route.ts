@@ -190,15 +190,18 @@ export async function GET(req: NextRequest) {
   for (const r of allResignations) exitsByStatus[r.status] = (exitsByStatus[r.status] ?? 0) + 1;
   const attritionRate = totalNonAdmins > 0 ? Math.round((allResignations.length / totalNonAdmins) * 100) : 0;
 
-  return NextResponse.json({
-    // Existing
-    attendanceTrend, departmentAttendance, leaveMonthly, employeeRanking, suspiciousCount,
-    // New
-    departmentDistribution, employeeGrowth,
-    totalEmployees: totalNonAdmins,
-    recruitment: { activeJobs, closedJobs, totalCandidates: allCandidates.length, selected: candidatesByStage["selected"] ?? 0, referredCount, funnel: recruitmentFunnel },
-    payroll: { trend: payrollTrend, totalPaid: Math.round(totalPayrollPaid), totalPending: Math.round(totalPayrollPending) },
-    helpdesk: { byStatus: ticketsByStatus, byCategory: helpdeskByCategory, avgResolutionHours, openCount: ticketsByStatus["open"] ?? 0, resolvedCount: (ticketsByStatus["resolved"] ?? 0) + (ticketsByStatus["closed"] ?? 0) },
-    exits: { total: allResignations.length, byStatus: exitsByStatus, attritionRate },
-  });
+  return NextResponse.json(
+    {
+      // Existing
+      attendanceTrend, departmentAttendance, leaveMonthly, employeeRanking, suspiciousCount,
+      // New
+      departmentDistribution, employeeGrowth,
+      totalEmployees: totalNonAdmins,
+      recruitment: { activeJobs, closedJobs, totalCandidates: allCandidates.length, selected: candidatesByStage["selected"] ?? 0, referredCount, funnel: recruitmentFunnel },
+      payroll: { trend: payrollTrend, totalPaid: Math.round(totalPayrollPaid), totalPending: Math.round(totalPayrollPending) },
+      helpdesk: { byStatus: ticketsByStatus, byCategory: helpdeskByCategory, avgResolutionHours, openCount: ticketsByStatus["open"] ?? 0, resolvedCount: (ticketsByStatus["resolved"] ?? 0) + (ticketsByStatus["closed"] ?? 0) },
+      exits: { total: allResignations.length, byStatus: exitsByStatus, attritionRate },
+    },
+    { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } }
+  );
 }

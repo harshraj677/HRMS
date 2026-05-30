@@ -8,11 +8,7 @@ async function requireAdmin(req: NextRequest) {
   if (!token) return { error: "Not authenticated.", status: 401 };
   const payload = verifyToken(token);
   if (!payload) return { error: "Invalid session.", status: 401 };
-  const caller = await prisma.employee.findUnique({
-    where: { id: payload.id },
-    select: { role: true },
-  });
-  if (!caller || caller.role !== "admin") return { error: "Forbidden.", status: 403 };
+  if (payload.role !== "admin") return { error: "Forbidden.", status: 403 };
   return { payload };
 }
 
