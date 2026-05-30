@@ -94,7 +94,8 @@ export default function DashboardPage() {
   const userId = user?.id ? String(user.id) : "";
   const { data: announcements } = useAnnouncements();
   const latestAnnouncements = (announcements ?? []).slice(0, 3);
-  const { data: profile } = useProfile(userId);
+  const profileEmployeeId = isAdmin ? "" : userId;
+  const { data: profile } = useProfile(profileEmployeeId);
   const pendingLeaves = leaveRequests?.filter((l: any) => l.status === "pending") ?? [];
 
   const profileCompletion = !isAdmin ? calculateProfileCompletion({

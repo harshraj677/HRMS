@@ -10,9 +10,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const { id } = await params;
-  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
 
-  if (!caller || (caller.role !== "admin" && payload.id !== id)) {
+  if (payload.role !== "admin" && payload.id !== id) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
@@ -105,9 +104,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
   const { id } = await params;
-  const caller = await prisma.employee.findUnique({ where: { id: payload.id }, select: { role: true } });
 
-  if (!caller || (caller.role !== "admin" && payload.id !== id)) {
+  if (payload.role !== "admin" && payload.id !== id) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
@@ -119,7 +117,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.fullName) data.fullName = body.fullName.trim();
   if (body.phone !== undefined) data.phone = body.phone?.trim() || null;
 
-  if (caller.role === "admin") {
+  if (payload.role === "admin") {
     if (body.email) data.email = body.email.trim().toLowerCase();
     if (body.department !== undefined) data.department = body.department?.trim() || null;
     if (body.position !== undefined) data.position = body.position?.trim() || null;

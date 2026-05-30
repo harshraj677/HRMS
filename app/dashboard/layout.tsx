@@ -10,16 +10,20 @@ import dynamic from "next/dynamic";
 const TopNav = dynamic(() => import("@/components/layout/TopNav").then((m) => m.TopNav), {
   ssr: false,
 });
+const OnboardingWizard = dynamic(
+  () => import("@/components/onboarding/OnboardingWizard").then((m) => m.OnboardingWizard),
+  { ssr: false }
+);
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { data: user } = useAuth();
   const userId = user?.id ? String(user.id) : "";
-  const { data: profile, isLoading } = useProfile(userId);
+  const profileEmployeeId = user?.role === "admin" ? "" : userId;
+  const { data: profile, isLoading } = useProfile(profileEmployeeId);
   const [dismissed, setDismissed] = useState(false);
 
   // Show wizard if: employee (not admin), profile loaded, onboarding not completed

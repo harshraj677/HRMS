@@ -15,6 +15,7 @@ export function useProfile(employeeId: string) {
       return json.profile;
     },
     enabled: !!employeeId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
