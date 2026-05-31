@@ -1,17 +1,23 @@
 import nodemailer from "nodemailer";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://anvesync.vercel.app";
+// ── Centralised branding ──────────────────────────────────────────────────────
+const APP_NAME = process.env.APP_NAME || "AnveCore HRMS";
+const APP_URL  = process.env.NEXT_PUBLIC_APP_URL || "https://anvecore.vercel.app";
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host:   process.env.SMTP_HOST || "smtp.gmail.com",
+  port:   Number(process.env.SMTP_PORT) || 587,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
   },
 });
 
+// ── HTML template ─────────────────────────────────────────────────────────────
+
 function buildEmailHtml(name: string, email: string, password: string): string {
-  const loginUrl = `${APP_URL}/login`;
+  const loginUrl  = `${APP_URL}/login`;
   const firstName = name.split(" ")[0];
 
   return `<!DOCTYPE html>
@@ -19,7 +25,7 @@ function buildEmailHtml(name: string, email: string, password: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Anvesync</title>
+  <title>Welcome to ${APP_NAME}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
 
@@ -34,8 +40,8 @@ function buildEmailHtml(name: string, email: string, password: string): string {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding-bottom:16px;">
-                    <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:14px;padding:10px 18px;">
-                      <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:-0.5px;">Anvesync</span>
+                    <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:14px;padding:10px 22px;">
+                      <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:-0.5px;">${APP_NAME}</span>
                     </div>
                   </td>
                 </tr>
@@ -71,7 +77,7 @@ function buildEmailHtml(name: string, email: string, password: string): string {
                 <tr>
                   <td align="center" style="padding-top:12px;padding-bottom:28px;">
                     <p style="color:#64748b;font-size:15px;line-height:1.7;margin:0;max-width:420px;">
-                      Your employee account on <strong style="color:#6366f1;">Anvesync</strong> has been created.
+                      Your employee account on <strong style="color:#6366f1;">${APP_NAME}</strong> has been created.
                       Use the credentials below to sign in for the first time.
                     </p>
                   </td>
@@ -115,7 +121,7 @@ function buildEmailHtml(name: string, email: string, password: string): string {
             <td style="background:#ffffff;padding:4px 40px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;text-align:center;">
               <a href="${loginUrl}"
                  style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:12px;letter-spacing:-0.2px;">
-                Login to Anvesync &rarr;
+                Login to ${APP_NAME} &rarr;
               </a>
               <p style="color:#94a3b8;font-size:12px;margin:12px 0 0;">
                 ${loginUrl}
@@ -158,7 +164,7 @@ function buildEmailHtml(name: string, email: string, password: string): string {
           <tr>
             <td style="background:#ffffff;padding:24px 40px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 0 16px 16px;text-align:center;">
               <p style="color:#475569;font-size:13px;margin:0 0 4px;">
-                Regards, <strong style="color:#6366f1;">Anvesync HR Team</strong>
+                Regards, <strong style="color:#6366f1;">${APP_NAME} HR Team</strong>
               </p>
               <p style="color:#94a3b8;font-size:12px;margin:0;line-height:1.6;">
                 This is an automated message. Please do not reply to this email.<br/>
@@ -171,7 +177,7 @@ function buildEmailHtml(name: string, email: string, password: string): string {
           <tr>
             <td style="padding:20px 0;text-align:center;">
               <p style="color:#cbd5e1;font-size:11px;margin:0;">
-                &copy; 2025 Anvesana Innovation &amp; Entrepreneurial Forum. All rights reserved.
+                &copy; 2025 Anvesana Innovation &amp; Entrepreneurial Forum &mdash; ${APP_NAME}. All rights reserved.
               </p>
             </td>
           </tr>
@@ -185,12 +191,14 @@ function buildEmailHtml(name: string, email: string, password: string): string {
 </html>`;
 }
 
+// ── Plain-text fallback ───────────────────────────────────────────────────────
+
 function buildEmailText(name: string, email: string, password: string): string {
   const loginUrl = `${APP_URL}/login`;
   return [
-    `Welcome to Anvesync, ${name}!`,
+    `Welcome to ${APP_NAME}, ${name}!`,
     ``,
-    `Your employee account has been created on the Anvesync Workforce Management Platform.`,
+    `Your employee account has been created on ${APP_NAME}.`,
     ``,
     `LOGIN CREDENTIALS`,
     `─────────────────`,
@@ -203,10 +211,12 @@ function buildEmailText(name: string, email: string, password: string): string {
     `Please change it immediately after your first login.`,
     ``,
     `Regards,`,
-    `Anvesync HR Team`,
+    `${APP_NAME} HR Team`,
     `Anvesana Innovation & Entrepreneurial Forum`,
   ].join("\n");
 }
+
+// ── Exported types & functions ────────────────────────────────────────────────
 
 export interface EmailResult {
   success: boolean;
@@ -218,13 +228,14 @@ export async function sendEmployeeEmail(
   employeeName: string,
   password: string
 ): Promise<EmailResult> {
+  const from = process.env.SMTP_FROM || `"${APP_NAME} HR Team" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`;
   try {
     await transporter.sendMail({
-      from: `"Anvesync HR Team" <${process.env.EMAIL_USER}>`,
-      to: employeeEmail,
-      subject: `Welcome to Anvesync – Your Employee Account`,
-      html: buildEmailHtml(employeeName, employeeEmail, password),
-      text: buildEmailText(employeeName, employeeEmail, password),
+      from,
+      to:      employeeEmail,
+      subject: `Welcome to ${APP_NAME} – Your Employee Account`,
+      html:    buildEmailHtml(employeeName, employeeEmail, password),
+      text:    buildEmailText(employeeName, employeeEmail, password),
     });
 
     console.log(`✅ Welcome email sent to ${employeeEmail}`);

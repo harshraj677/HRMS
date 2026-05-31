@@ -563,7 +563,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 px-1">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-semibold text-indigo-500">Anvesync</span> — Innovation & Entrepreneurial Forum
+            Powered by <span className="font-semibold text-indigo-500">AnveCore HRMS</span> — Innovation &amp; Entrepreneurial Forum
           </p>
         </div>
       )}
