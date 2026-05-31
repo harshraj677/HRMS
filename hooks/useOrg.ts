@@ -25,17 +25,6 @@ export interface DesignationData {
   createdAt: string;
 }
 
-export interface OrgNode {
-  id: string;
-  fullName: string;
-  position: string | null;
-  department: string | null;
-  role: string;
-  avatar: string | null;
-  reportingManagerId: string | null;
-  children: OrgNode[];
-}
-
 export interface DirectoryEmployee {
   id: string;
   fullName: string;
@@ -183,19 +172,6 @@ export function useDeleteDesignation() {
   });
 }
 
-// ─── Org Tree ─────────────────────────────────────────────────────────────────
-
-export function useOrgTree() {
-  return useQuery<OrgNode[]>({
-    queryKey: ["org-tree"],
-    queryFn: async () => {
-      const res = await fetch("/api/org/tree");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).tree;
-    },
-  });
-}
-
 // ─── Directory ────────────────────────────────────────────────────────────────
 
 export function useDirectory(filters?: { search?: string; department?: string }) {
@@ -238,7 +214,6 @@ export function useAssignManager() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-team"] });
-      qc.invalidateQueries({ queryKey: ["org-tree"] });
       qc.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Reporting manager updated.");
     },

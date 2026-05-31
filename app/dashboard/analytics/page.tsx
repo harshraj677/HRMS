@@ -15,7 +15,7 @@ import {
 import { cn, getInitials } from "@/lib/utils";
 import { useAnalytics, useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { fmtINR } from "@/lib/payrollCalculator";
 
 const COLORS = ["#6366f1","#8b5cf6","#06b6d4","#10b981","#f59e0b","#f43f5e","#64748b","#ec4899"];
@@ -284,7 +284,6 @@ export default function AnalyticsPage() {
                     {i + 1}
                   </span>
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${emp.fullName}`} />
                     <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700">{getInitials(emp.fullName)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">

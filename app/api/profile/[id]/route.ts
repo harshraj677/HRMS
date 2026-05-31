@@ -28,7 +28,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     profile = await prisma.employeeProfile.create({ data: { employeeId: id } });
   }
 
-  return NextResponse.json({ profile });
+  const res = NextResponse.json({ profile });
+  // Profiles change infrequently — private cache 2 min, stale-while-revalidate 10 min
+  res.headers.set("Cache-Control", "private, max-age=120, stale-while-revalidate=600");
+  return res;
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

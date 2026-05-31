@@ -51,6 +51,8 @@ model Attendance {
   checkOutPhoto      String?
   checkInAccuracy    Float?
   checkOutAccuracy   Float?
+  checkInAddress     String?   // reverse-geocoded address at check-in
+  checkOutAddress    String?   // reverse-geocoded address at check-out
   faceScore          Float?
   faceVerified       Boolean?
   faceVerifiedAt     DateTime?
@@ -400,19 +402,6 @@ model Candidate {
   updatedAt      DateTime  @updatedAt
 }
 
-model HRDocument {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  title        String
-  description  String?
-  category     String    @default("general")
-  fileBase64   String
-  fileName     String
-  fileType     String
-  isPublic     Boolean   @default(true)
-  uploadedById String    @db.ObjectId
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
 
 model Ticket {
   id           String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -494,35 +483,6 @@ model EventRegistration {
   @@unique([eventId, employeeId])
 }
 
-model Course {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  title        String
-  description  String?
-  category     String    @default("general")
-  content      String?
-  durationMins Int?
-  level        String    @default("beginner")
-  isRequired   Boolean   @default(false)
-  createdById  String    @db.ObjectId
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  enrollments  CourseEnrollment[]
-}
-
-model CourseEnrollment {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  courseId    String    @db.ObjectId
-  employeeId  String    @db.ObjectId
-  progress    Int       @default(0)
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  enrolledAt  DateTime  @default(now())
-
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, employeeId])
-}
 
 model Resignation {
   id              String    @id @default(auto()) @map("_id") @db.ObjectId

@@ -39,13 +39,30 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     checkIn: record.checkIn,
     checkOut: record.checkOut,
     hours,
     status: currentStatus,
     distanceFromOffice: record.distanceFromOffice,
+    latitude: record.latitude ?? null,
+    longitude: record.longitude ?? null,
+    checkInAddress: record.checkInAddress ?? null,
+    checkOutAddress: record.checkOutAddress ?? null,
     checkInPhoto: record.checkInPhoto ?? null,
     checkOutPhoto: record.checkOutPhoto ?? null,
+    faceVerified: record.faceVerified ?? null,
+    faceScore: record.faceScore ?? null,
+    needsReview: record.needsReview,
+    policyResult: record.policyResult ?? null,
+    isRemote: record.isRemote,
+    manualOverride: record.manualOverride,
+    livenessResult: record.livenessResult ?? null,
+    livenessScore: record.livenessScore ?? null,
+    reviewStatus: record.reviewStatus,
+    reviewNotes: record.reviewNotes ?? null,
   });
+  // Revalidate every 30 s — attendance data changes when employee checks in/out
+  res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=120");
+  return res;
 }

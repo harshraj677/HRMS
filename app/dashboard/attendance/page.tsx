@@ -28,13 +28,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTodayAttendance, useAttendanceHistory, useCheckIn, useCheckOut } from "@/hooks/useAttendance";
+import { useTodayAttendance, useAttendanceHistory, useCheckIn, useCheckOut, PolicyBlockError, useApproveOverride } from "@/hooks/useAttendance";
+import type { OverridePrompt } from "@/hooks/useAttendance";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { AlertBanner } from "@/components/ui/AlertBanner";
 import { AttendanceCaptureModal } from "@/components/attendance/AttendanceCaptureModal";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import type { AttendanceEvidence } from "@/hooks/useAttendance";
+import { UserCheck, UserX, Eye, Wifi, ShieldX, ShieldCheck } from "lucide-react";
 
 function parseCheckError(msg: string): { title: string; message: string } {
   const colonIdx = msg.indexOf(": ");
@@ -61,39 +64,72 @@ function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
-/** Tiny photo thumbnail — click to open full-size overlay. */
-function PhotoThumb({ src, label }: { src: string; label: string }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Photo thumbnail with on-demand loading.
+ * If `src` is provided (e.g. today's record), shows immediately.
+ * If `attendanceId` + `which` are provided, fetches lazily on first open.
+ */
+function PhotoThumb({
+  src, attendanceId, which = "in", label,
+}: {
+  src?: string | null;
+  attendanceId?: string;
+  which?: "in" | "out";
+  label: string;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [photo,   setPhoto]   = useState<string | null>(src ?? null);
+  const [loading, setLoading] = useState(false);
+
+  const handleOpen = async () => {
+    setOpen(true);
+    if (!photo && !loading && attendanceId) {
+      setLoading(true);
+      try {
+        const res  = await fetch(`/api/attendance/photo?id=${attendanceId}&which=${which}`);
+        const data = await res.json();
+        setPhoto(data.photo ?? null);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="shrink-0 w-8 h-6 rounded overflow-hidden border border-slate-200 hover:border-indigo-400 transition-colors"
+        onClick={handleOpen}
+        className="shrink-0 w-8 h-6 rounded overflow-hidden border border-slate-200 hover:border-indigo-400 transition-colors flex items-center justify-center bg-slate-50"
         title={label}
+        aria-label={label}
       >
-        <img src={src} alt={label} className="w-full h-full object-cover" />
+        {photo
+          ? <img src={photo} alt={label} className="w-full h-full object-cover" />
+          : <Camera className="w-3.5 h-3.5 text-slate-400" />
+        }
       </button>
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => setOpen(false)}
         >
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={src}
-              alt={label}
-              className="max-w-xs max-h-[60vh] rounded-xl shadow-2xl object-cover"
-            />
-            <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
-              {label}
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
+          <div className="relative min-w-[200px] min-h-[150px]" onClick={(e) => e.stopPropagation()}>
+            {loading ? (
+              <div className="w-64 h-48 rounded-xl bg-slate-800 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
+            ) : photo ? (
+              <img src={photo} alt={label} className="max-w-xs max-h-[60vh] rounded-xl shadow-2xl object-cover" />
+            ) : (
+              <div className="w-64 h-48 rounded-xl bg-slate-800 flex items-center justify-center text-white/50 text-sm">
+                No photo available
+              </div>
+            )}
+            <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">{label}</div>
+            <button type="button" onClick={() => setOpen(false)}
               className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-              aria-label="Close"
-            >
+              aria-label="Close">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -103,9 +139,85 @@ function PhotoThumb({ src, label }: { src: string; label: string }) {
   );
 }
 
+/** Policy result pill shown in today card and history table. */
+function PolicyPill({ result, isRemote }: { result: any; isRemote?: boolean }) {
+  if (!result) return null;
+  const status: string = result.status ?? "ok";
+  if (status === "ok" || status === "review") {
+    if (isRemote) return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+        <Wifi className="w-3 h-3" /> Remote
+      </span>
+    );
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+        <MapPin className="w-3 h-3" /> {result.geofenceName ?? "In zone"}
+      </span>
+    );
+  }
+  if (status === "remote_ok") return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+      <Wifi className="w-3 h-3" /> Remote
+    </span>
+  );
+  if (status === "outside") return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+      <AlertTriangle className="w-3 h-3" /> Outside zone
+    </span>
+  );
+  if (status === "blocked") return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+      <ShieldX className="w-3 h-3" /> Blocked
+    </span>
+  );
+  return null;
+}
+
+/** Inline face-verification badge for the history table. */
+function LivenessBadge({ result, score }: { result: string | null; score: number | null }) {
+  if (!result) return <span className="text-xs text-slate-300">–</span>;
+  if (result === "passed") return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+      <ShieldCheck className="w-3 h-3" />{score !== null ? `${score}` : "ok"}
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+      <ShieldX className="w-3 h-3" />{score !== null ? `${score}` : "?"}
+    </span>
+  );
+}
+
+function FaceBadge({ verified, score, needsReview }: {
+  verified: boolean | null;
+  score: number | null;
+  needsReview: boolean;
+}) {
+  if (verified === null && score === null) {
+    return <span className="text-xs text-slate-300 flex items-center gap-1"><Eye className="w-3 h-3" />–</span>;
+  }
+  if (verified) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+        <UserCheck className="w-3 h-3" />{score}%
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+      <UserX className="w-3 h-3" />{score !== null ? `${score}%` : "–"}
+      {needsReview && <span className="text-[9px] ml-0.5">review</span>}
+    </span>
+  );
+}
+
 export default function AttendancePage() {
   const { data: user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const userId = user?.id ? String(user.id) : "";
+  const { data: profile } = useProfile(userId);
+  const profilePhoto = (profile as any)?.avatar ?? null;
+
   const { data: today, isLoading: todayLoading } = useTodayAttendance();
   const { data: history, isLoading: historyLoading } = useAttendanceHistory();
   const checkIn  = useCheckIn();
@@ -115,13 +227,20 @@ export default function AttendancePage() {
   const [now, setNow] = useState<Date | null>(null);
   const [alertHidden, setAlertHidden] = useState(false);
 
+  const approveOverride = useApproveOverride();
+
   // Capture modal state
   const [captureModal, setCaptureModal] = useState<{ open: boolean; type: "checkin" | "checkout" }>({
     open: false,
     type: "checkin",
   });
+  const [overridePrompt, setOverridePrompt] = useState<OverridePrompt | null>(null);
+  // Stores the last evidence so we can resubmit with override flag
+  const [pendingEvidence, setPendingEvidence] = useState<import("@/hooks/useAttendance").AttendanceEvidence | null>(null);
 
-  const activeError = (checkIn.error ?? checkOut.error) as Error | null;
+  const activeError = checkIn.error instanceof PolicyBlockError
+    ? null  // policy blocks are handled via overridePrompt, not the error banner
+    : (checkIn.error ?? checkOut.error) as Error | null;
 
   useEffect(() => {
     if (checkIn.isPending || checkOut.isPending) setAlertHidden(false);
@@ -162,11 +281,26 @@ export default function AttendancePage() {
   ];
 
   const handleCaptureConfirm = (evidence: AttendanceEvidence) => {
+    setPendingEvidence(evidence);
+    setOverridePrompt(null);
     if (captureModal.type === "checkin") {
-      checkIn.mutate(evidence);
+      checkIn.mutate(evidence, {
+        onError: (err) => {
+          if (err instanceof PolicyBlockError) {
+            setOverridePrompt(err.overridePrompt);
+          }
+        },
+      });
     } else {
       checkOut.mutate(evidence);
     }
+  };
+
+  const handleOverrideConfirm = (note: string) => {
+    if (!pendingEvidence) return;
+    const evidenceWithOverride = { ...pendingEvidence, overrideRequested: true, overrideNote: note };
+    setOverridePrompt(null);
+    checkIn.mutate(evidenceWithOverride);
   };
 
   return (
@@ -249,6 +383,11 @@ export default function AttendancePage() {
                       <MapPin className="w-3 h-3" />
                       {Math.round(today.distanceFromOffice)}m from office
                     </p>
+                  )}
+                  {today?.policyResult && (
+                    <div className="mt-1.5 flex justify-center">
+                      <PolicyPill result={today.policyResult} isRemote={today.isRemote} />
+                    </div>
                   )}
                   {/* Today's check-in selfie thumbnail */}
                   {today?.checkInPhoto && (
@@ -421,11 +560,29 @@ export default function AttendancePage() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       {!isAdmin && <StatusBadge status={record.status} />}
-                      {/* Photo evidence thumbnails */}
-                      {(record.checkInPhoto || record.checkOutPhoto) && (
+                      {record.policyResult && <PolicyPill result={record.policyResult} isRemote={record.isRemote} />}
+                      {/* Photo evidence thumbnails — lazy loaded */}
+                      {(record.hasCheckInPhoto || record.hasCheckOutPhoto) && (
                         <div className="flex gap-1">
-                          {record.checkInPhoto && <PhotoThumb src={record.checkInPhoto} label="Check-in selfie" />}
-                          {record.checkOutPhoto && <PhotoThumb src={record.checkOutPhoto} label="Check-out selfie" />}
+                          {record.hasCheckInPhoto  && <PhotoThumb attendanceId={String(record.id)} which="in"  label="Check-in selfie" />}
+                          {record.hasCheckOutPhoto && <PhotoThumb attendanceId={String(record.id)} which="out" label="Check-out selfie" />}
+                        </div>
+                      )}
+                      {/* Admin override buttons for flagged records */}
+                      {isAdmin && record.needsReview && (
+                        <div className="flex gap-1 mt-0.5">
+                          <button type="button"
+                            onClick={() => approveOverride.mutate({ id: String(record.id), action: "approve" })}
+                            className="h-6 px-2 text-[10px] font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            disabled={approveOverride.isPending}>
+                            Approve
+                          </button>
+                          <button type="button"
+                            onClick={() => approveOverride.mutate({ id: String(record.id), action: "reject" })}
+                            className="h-6 px-2 text-[10px] font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                            disabled={approveOverride.isPending}>
+                            Reject
+                          </button>
                         </div>
                       )}
                     </div>
@@ -447,6 +604,8 @@ export default function AttendancePage() {
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</TableHead>
                     {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Distance</TableHead>}
                     <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Evidence</TableHead>
+                    {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Face</TableHead>}
+                    {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden xl:table-cell">Liveness</TableHead>}
                     {isAdmin && <TableHead className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden xl:table-cell">Device</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -504,27 +663,27 @@ export default function AttendancePage() {
                           )}
                         </TableCell>
                       )}
-                      {/* Evidence column: check-in & check-out photo thumbnails */}
+                      {/* Evidence column — lazy-loaded on click */}
                       <TableCell className="hidden lg:table-cell">
-                        {(record.checkInPhoto || record.checkOutPhoto) ? (
+                        {(record.hasCheckInPhoto || record.hasCheckOutPhoto) ? (
                           <div className="flex items-center gap-1.5">
-                            {record.checkInPhoto && (
+                            {record.hasCheckInPhoto && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span><PhotoThumb src={record.checkInPhoto} label="Check-in selfie" /></span>
+                                    <span><PhotoThumb attendanceId={String(record.id)} which="in"  label="Check-in selfie" /></span>
                                   </TooltipTrigger>
-                                  <TooltipContent>Check-in selfie</TooltipContent>
+                                  <TooltipContent>Check-in selfie (click to view)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             )}
-                            {record.checkOutPhoto && (
+                            {record.hasCheckOutPhoto && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span><PhotoThumb src={record.checkOutPhoto} label="Check-out selfie" /></span>
+                                    <span><PhotoThumb attendanceId={String(record.id)} which="out" label="Check-out selfie" /></span>
                                   </TooltipTrigger>
-                                  <TooltipContent>Check-out selfie</TooltipContent>
+                                  <TooltipContent>Check-out selfie (click to view)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             )}
@@ -535,6 +694,22 @@ export default function AttendancePage() {
                           </span>
                         )}
                       </TableCell>
+                      {/* Face verification column (admin) */}
+                      {isAdmin && (
+                        <TableCell className="hidden lg:table-cell">
+                          <FaceBadge
+                            verified={record.faceVerified}
+                            score={record.faceScore}
+                            needsReview={record.needsReview}
+                          />
+                        </TableCell>
+                      )}
+                      {/* Liveness column (admin) */}
+                      {isAdmin && (
+                        <TableCell className="hidden xl:table-cell">
+                          <LivenessBadge result={record.livenessResult} score={record.livenessScore} />
+                        </TableCell>
+                      )}
                       {isAdmin && (
                         <TableCell className="hidden xl:table-cell">
                           {record.device ? (
@@ -551,7 +726,7 @@ export default function AttendancePage() {
                   ))}
                   {(!history || history.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={isAdmin ? 9 : 6} className="text-center py-14">
+                      <TableCell colSpan={isAdmin ? 11 : 6} className="text-center py-14">
                         <CalendarDays className="w-10 h-10 text-slate-200 mx-auto mb-3" />
                         <p className="text-sm text-slate-400">No attendance records found</p>
                       </TableCell>
@@ -568,9 +743,12 @@ export default function AttendancePage() {
       <AttendanceCaptureModal
         type={captureModal.type}
         isOpen={captureModal.open}
-        onClose={() => setCaptureModal((s) => ({ ...s, open: false }))}
+        onClose={() => { setCaptureModal((s) => ({ ...s, open: false })); setOverridePrompt(null); }}
         onConfirm={handleCaptureConfirm}
         isPending={checkIn.isPending || checkOut.isPending}
+        profilePhoto={profilePhoto}
+        overridePrompt={overridePrompt}
+        onOverrideConfirm={overridePrompt ? handleOverrideConfirm : undefined}
       />
     </div>
   );

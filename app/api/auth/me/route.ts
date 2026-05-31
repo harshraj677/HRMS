@@ -27,5 +27,8 @@ export async function GET(req: NextRequest) {
 
   if (!employee) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-  return NextResponse.json({ user: employee });
+  const res = NextResponse.json({ user: employee });
+  // Private cache: browser may serve from cache for up to 60 s before revalidating
+  res.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+  return res;
 }

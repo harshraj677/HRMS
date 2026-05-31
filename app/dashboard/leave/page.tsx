@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLeaveRequests, useSubmitLeaveRequest, useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
 import { useAuth } from "@/hooks/useAuth";
 import { cn, formatDate, getInitials } from "@/lib/utils";
@@ -325,7 +325,6 @@ export default function LeavePage() {
                                 {isAdmin ? (
                                   <div className="flex items-center gap-2.5">
                                     <Avatar className="h-8 w-8 shrink-0">
-                                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leave.fullName}`} />
                                       <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
                                         {getInitials(leave.fullName)}
                                       </AvatarFallback>
@@ -430,7 +429,6 @@ export default function LeavePage() {
                                   <TableCell>
                                     <div className="flex items-center gap-2.5">
                                       <Avatar className="h-8 w-8">
-                                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leave.fullName}`} />
                                         <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
                                           {getInitials(leave.fullName)}
                                         </AvatarFallback>

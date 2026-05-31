@@ -61,7 +61,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0 transition-[margin] duration-200 ease-in-out",
-          collapsed ? "lg:ml-16" : "lg:ml-60"
+          collapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
         )}
       >
         <TopNav />

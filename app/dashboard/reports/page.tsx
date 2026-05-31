@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, FileText, Users, CalendarCheck, Banknote, Briefcase, Loader2 } from "lucide-react";
+import { Download, FileText, Users, CalendarCheck, Banknote, Briefcase, Loader2, ShieldCheck } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { cn } from "@/lib/utils";
 import { downloadCSV, fmtCSVDate } from "@/lib/exportUtils";
@@ -16,6 +16,12 @@ interface ReportDef {
   color: string;
   fetch: () => Promise<Record<string, unknown>[]>;
   filename: string;
+}
+
+// Server-side exports (stream from /api/attendance/export)
+function downloadServerExport(params: Record<string, string>) {
+  const search = new URLSearchParams(params);
+  window.open(`/api/attendance/export?${search.toString()}`, "_blank");
 }
 
 const reports: ReportDef[] = [
@@ -111,6 +117,28 @@ const reports: ReportDef[] = [
     },
   },
   {
+    id: "attendance_evidence",
+    title: "Attendance Evidence Report",
+    description: "All records with face score, liveness score, policy result and review status (last 30 days)",
+    icon: ShieldCheck,
+    color: "bg-emerald-100 text-emerald-600",
+    filename: "attendance_evidence",
+    fetch: async () => {
+      const dateTo = new Date().toISOString().slice(0, 10);
+      const dateFrom = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+      const res = await fetch(`/api/attendance/export?includeEvidence=true&dateFrom=${dateFrom}&dateTo=${dateTo}`);
+      if (!res.ok) throw new Error("Export failed");
+      const text = await res.text();
+      const lines = text.split("\r\n").filter(Boolean);
+      if (lines.length < 2) return [];
+      const headers = lines[0].replace(/^﻿/, "").split(",");
+      return lines.slice(1).map((line) => {
+        const vals = line.split(",");
+        return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? ""]));
+      });
+    },
+  },
+  {
     id: "candidates",
     title: "Recruitment Pipeline",
     description: "All job candidates with current stage and job applied for",
@@ -185,6 +213,20 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
+                {report.id === "attendance_evidence" ? (
+                  <div className="flex gap-2">
+                    <button type="button" disabled={!!loading}
+                      onClick={() => { const d = new Date(); downloadServerExport({ format: "csv", includeEvidence: "true", dateFrom: new Date(d.getTime()-30*86400_000).toISOString().slice(0,10), dateTo: d.toISOString().slice(0,10) }); }}
+                      className="flex-1 h-9 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50">
+                      <Download className="w-4 h-4" /> CSV
+                    </button>
+                    <button type="button" disabled={!!loading}
+                      onClick={() => { const d = new Date(); downloadServerExport({ format: "xlsx", includeEvidence: "true", dateFrom: new Date(d.getTime()-30*86400_000).toISOString().slice(0,10), dateTo: d.toISOString().slice(0,10) }); }}
+                      className="flex-1 h-9 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50">
+                      <Download className="w-4 h-4" /> XLSX
+                    </button>
+                  </div>
+                ) : (
                 <button
                   type="button"
                   disabled={!!loading}
@@ -201,6 +243,7 @@ export default function ReportsPage() {
                     <><Download className="w-4 h-4" /> Export CSV</>
                   )}
                 </button>
+                )}
               </motion.div>
             );
           })}
