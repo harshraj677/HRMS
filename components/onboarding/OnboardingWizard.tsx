@@ -47,7 +47,7 @@ interface WizardData {
   portfolioUrl?: string;
 }
 
-const STORAGE_KEY = (id: string) => `anvesync_onboarding_${id}`;
+const STORAGE_KEY = (id: string) => `anvecore_onboarding_${id}`;
 
 // ─── Step config ─────────────────────────────────────────────────────────────
 
