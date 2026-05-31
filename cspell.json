@@ -1,0 +1,30 @@
+{
+  "version": "0.2",
+  "ignorePaths": ["node_modules", ".next", "public/models"],
+  "words": [
+    "vladmandic",
+    "anvesync",
+    "anvesana",
+    "diksuchi",
+    "geotag",
+    "liveness",
+    "tailwindcss",
+    "shadcn",
+    "sonner",
+    "prisma",
+    "radix",
+    "tanstack",
+    "lucide",
+    "framer",
+    "recharts",
+    "nodemailer",
+    "bcrypt",
+    "ifsc",
+    "uan",
+    "hra",
+    "pf",
+    "webp",
+    "avif",
+    "nominatim"
+  ]
+}

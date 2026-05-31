@@ -15,6 +15,11 @@ import {
   Timer,
   CheckCircle,
   Sparkles,
+  BriefcaseBusiness,
+  Banknote,
+  HeadphonesIcon,
+  Rocket,
+  MapPin,
 } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useLeaveRequests, useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
@@ -25,12 +30,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertBanner } from "@/components/ui/AlertBanner";
 import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
 
 function parseCheckError(msg: string): { title: string; message: string } {
   const colonIdx = msg.indexOf(": ");
@@ -48,36 +52,14 @@ function getGreeting() {
 }
 
 const colorTokens: Record<string, { icon: string; gradient: string; border: string; label: string }> = {
-  indigo: {
-    icon: "bg-indigo-100 text-indigo-600",
-    gradient: "from-indigo-50 to-indigo-50/40",
-    border: "border-indigo-100",
-    label: "text-indigo-600",
-  },
-  emerald: {
-    icon: "bg-emerald-100 text-emerald-600",
-    gradient: "from-emerald-50 to-emerald-50/40",
-    border: "border-emerald-100",
-    label: "text-emerald-600",
-  },
-  amber: {
-    icon: "bg-amber-100 text-amber-600",
-    gradient: "from-amber-50 to-amber-50/40",
-    border: "border-amber-100",
-    label: "text-amber-600",
-  },
-  violet: {
-    icon: "bg-violet-100 text-violet-600",
-    gradient: "from-violet-50 to-violet-50/40",
-    border: "border-violet-100",
-    label: "text-violet-600",
-  },
-  rose: {
-    icon: "bg-rose-100 text-rose-600",
-    gradient: "from-rose-50 to-rose-50/40",
-    border: "border-rose-100",
-    label: "text-rose-600",
-  },
+  indigo:  { icon: "bg-indigo-100 text-indigo-600",   gradient: "from-indigo-50 to-white",   border: "border-indigo-100",   label: "text-indigo-600"   },
+  emerald: { icon: "bg-emerald-100 text-emerald-600", gradient: "from-emerald-50 to-white",  border: "border-emerald-100",  label: "text-emerald-600"  },
+  amber:   { icon: "bg-amber-100 text-amber-600",     gradient: "from-amber-50 to-white",    border: "border-amber-100",    label: "text-amber-600"    },
+  violet:  { icon: "bg-violet-100 text-violet-600",   gradient: "from-violet-50 to-white",   border: "border-violet-100",   label: "text-violet-600"   },
+  rose:    { icon: "bg-rose-100 text-rose-600",       gradient: "from-rose-50 to-white",     border: "border-rose-100",     label: "text-rose-600"     },
+  sky:     { icon: "bg-sky-100 text-sky-600",         gradient: "from-sky-50 to-white",      border: "border-sky-100",      label: "text-sky-600"      },
+  teal:    { icon: "bg-teal-100 text-teal-600",       gradient: "from-teal-50 to-white",     border: "border-teal-100",     label: "text-teal-600"     },
+  orange:  { icon: "bg-orange-100 text-orange-600",   gradient: "from-orange-50 to-white",   border: "border-orange-100",   label: "text-orange-600"   },
 };
 
 export default function DashboardPage() {
@@ -148,11 +130,14 @@ export default function DashboardPage() {
 
   const adminCards = stats
     ? [
-        { title: "Total Employees", value: stats.totalEmployees, subtitle: "Active members", icon: Users, color: "indigo" },
-        { title: "Present Today", value: stats.presentToday, subtitle: `${stats.percentPresent}% attendance`, icon: CalendarCheck, color: "emerald" },
-        { title: "Late Today", value: stats.lateToday ?? 0, subtitle: "After 9:30 AM", icon: AlertTriangle, color: "amber" },
-        { title: "On Leave", value: stats.onLeave, subtitle: "Approved absences", icon: UserX, color: "violet" },
-        { title: "Pending Requests", value: stats.pendingLeaveRequests, subtitle: "Awaiting approval", icon: ClipboardList, color: "rose" },
+        { title: "Total Employees", value: stats.totalEmployees,       subtitle: "Active team members",        icon: Users,             color: "indigo",  href: "/dashboard/employees"  },
+        { title: "Present Today",   value: stats.presentToday,         subtitle: `${stats.percentPresent}% attendance rate`, icon: CalendarCheck, color: "emerald", href: "/dashboard/attendance"  },
+        { title: "On Leave",        value: stats.onLeave,              subtitle: "Approved absences",          icon: UserX,             color: "violet",  href: "/dashboard/leave"       },
+        { title: "Pending Leaves",  value: stats.pendingLeaveRequests, subtitle: "Awaiting approval",          icon: ClipboardList,     color: "amber",   href: "/dashboard/leave"       },
+        { title: "Open Jobs",       value: (stats as any).openJobs ?? 0,       subtitle: "Active job postings",       icon: BriefcaseBusiness, color: "sky",     href: "/dashboard/recruitment" },
+        { title: "Pending Payroll", value: (stats as any).pendingPayrolls ?? 0, subtitle: "Payrolls to process",      icon: Banknote,          color: "teal",    href: "/dashboard/payroll"     },
+        { title: "Open Tickets",    value: (stats as any).openTickets ?? 0,    subtitle: "Support requests",          icon: HeadphonesIcon,    color: "rose",    href: "/dashboard/helpdesk"    },
+        { title: "Active Startups", value: (stats as any).activeStartups ?? 0, subtitle: "In incubation",             icon: Rocket,            color: "orange",  href: "/dashboard/startups"    },
       ]
     : [];
 
@@ -170,11 +155,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* ── Hero banner ──────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-500 p-6 text-white shadow-lg shadow-indigo-500/25"
+              <div
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-500 p-6 text-white shadow-lg shadow-indigo-500/25"
       >
         <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-violet-400/20 blur-2xl pointer-events-none" />
@@ -215,7 +197,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── Check-in / Check-out error banner ────────────────────── */}
       {alertData && (
@@ -229,11 +211,8 @@ export default function DashboardPage() {
       )}
 
       {/* ── Quick attendance card ─────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.06 }}
-        className={cn(
+              <div
+          className={cn(
           "relative overflow-hidden rounded-2xl border p-5 transition-colors",
           !hasCheckedIn && "bg-white border-slate-100 shadow-sm",
           hasCheckedIn && !hasCheckedOut && "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100",
@@ -288,6 +267,12 @@ export default function DashboardPage() {
                 {fmtTime(todayAttendance?.checkOut) && ` · Out: ${fmtTime(todayAttendance?.checkOut)}`}
                 {todayAttendance?.hours != null && ` · ${todayAttendance.hours}h worked`}
               </p>
+              {(todayAttendance as any)?.checkInAddress && (
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  {(todayAttendance as any).checkInAddress}
+                </p>
+              )}
             </div>
           </div>
 
@@ -328,18 +313,18 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── KPI stat cards ────────────────────────────────────────── */}
       {statsLoading ? (
         <div
           className={cn(
             "grid gap-3 sm:gap-4",
-            isAdmin ? "grid-cols-2 xl:grid-cols-5" : "grid-cols-2 xl:grid-cols-4"
+            isAdmin ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 xl:grid-cols-4"
           )}
         >
-          {[...Array(isAdmin ? 5 : 4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5">
+          {[...Array(isAdmin ? 8 : 4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
               <Skeleton className="h-9 w-9 rounded-xl mb-3" />
               <Skeleton className="h-7 w-12 mb-2" />
               <Skeleton className="h-3 w-24" />
@@ -350,34 +335,42 @@ export default function DashboardPage() {
         <div
           className={cn(
             "grid gap-3 sm:gap-4",
-            isAdmin ? "grid-cols-2 xl:grid-cols-5" : "grid-cols-2 xl:grid-cols-4"
+            isAdmin ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 xl:grid-cols-4"
           )}
         >
           {cards.map((card, idx) => {
             const Icon = card.icon;
             const tok = colorTokens[card.color];
-            return (
-              <motion.div
-                key={card.title}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.12 + idx * 0.06 }}
-                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+            const inner = (
+              <div
                 className={cn(
-                  "relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 cursor-default",
+                  "relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 sm:p-5 h-full",
+                  (card as any).href ? "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" : "cursor-default",
                   tok.gradient,
                   tok.border
                 )}
               >
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", tok.icon)}>
-                  <Icon className="w-5 h-5" />
+                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", tok.icon)}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <p className="text-2xl font-bold text-slate-900 leading-none">{card.value}</p>
-                <p className="text-xs text-slate-500 mt-1.5 leading-snug">{card.subtitle}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-none">{card.value}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-snug">{card.subtitle}</p>
                 <p className={cn("text-[10px] font-semibold uppercase tracking-widest mt-2", tok.label)}>
                   {card.title}
                 </p>
-              </motion.div>
+              </div>
+            );
+
+            return (
+              <div
+                key={card.title}
+              >
+                {(card as any).href ? (
+                  <Link href={(card as any).href}>{inner}</Link>
+                ) : (
+                  inner
+                )}
+              </div>
             );
           })}
         </div>
@@ -385,12 +378,7 @@ export default function DashboardPage() {
 
       {/* ── Admin: pending leave requests ────────────────────────── */}
       {isAdmin && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.32 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
-        >
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div>
               <h3 className="text-base font-semibold text-slate-900">Pending Leave Requests</h3>
@@ -415,17 +403,10 @@ export default function DashboardPage() {
               </div>
             ) : (
               pendingLeaves.slice(0, 5).map((leave: any, i: number) => (
-                <motion.div
-                  key={leave.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/70 transition-colors"
+                                  <div
+                    className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/70 transition-colors"
                 >
                   <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leave.fullName}`}
-                    />
                     <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
                       {leave.fullName?.split(" ").map((n: string) => n[0]).join("") ?? "?"}
                     </AvatarFallback>
@@ -461,21 +442,16 @@ export default function DashboardPage() {
                       Reject
                     </button>
                   </div>
-                </motion.div>
+                </div>
               ))
             )}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ── Employee: Profile completion card ───────────────────── */}
       {!isAdmin && profileCompletion < 100 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.28 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
-        >
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-semibold text-slate-800">Complete Your Profile</p>
@@ -488,13 +464,15 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-              <motion.div
-                className={cn("h-full rounded-full",
-                  profileCompletion >= 80 ? "bg-emerald-500" : profileCompletion >= 50 ? "bg-amber-400" : "bg-indigo-500"
+              <div
+                className={cn("h-full rounded-full transition-all duration-700",
+                  profileCompletion >= 80 ? "bg-emerald-500" : profileCompletion >= 50 ? "bg-amber-400" : "bg-indigo-500",
+                  profileCompletion >= 90 ? "w-[90%]" : profileCompletion >= 80 ? "w-4/5" :
+                  profileCompletion >= 70 ? "w-[70%]" : profileCompletion >= 60 ? "w-3/5" :
+                  profileCompletion >= 50 ? "w-1/2"   : profileCompletion >= 40 ? "w-2/5" :
+                  profileCompletion >= 30 ? "w-[30%]" : profileCompletion >= 20 ? "w-1/5" :
+                  profileCompletion >= 10 ? "w-[10%]" : "w-0"
                 )}
-                initial={{ width: 0 }}
-                animate={{ width: `${profileCompletion}%` }}
-                transition={{ duration: 0.8, delay: 0.4 }}
               />
             </div>
             <span className={cn("text-sm font-bold shrink-0",
@@ -503,7 +481,7 @@ export default function DashboardPage() {
               {profileCompletion}%
             </span>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ── Employee: quick links ────────────────────────────────── */}
@@ -528,12 +506,8 @@ export default function DashboardPage() {
             const Icon = item.icon;
             const tok = colorTokens[item.color];
             return (
-              <motion.div
+              <div
                 key={item.href}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + idx * 0.06 }}
-                whileHover={{ y: -2, transition: { duration: 0.15 } }}
               >
                 <Link href={item.href}>
                   <div className="group flex items-center gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-slate-200 transition-all cursor-pointer">
@@ -547,7 +521,7 @@ export default function DashboardPage() {
                     <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
         </div>
@@ -555,12 +529,7 @@ export default function DashboardPage() {
 
       {/* ── Announcements widget ────────────────────────────────── */}
       {latestAnnouncements.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
-        >
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Megaphone className="w-4 h-4 text-indigo-500" />
@@ -585,22 +554,17 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ── Employee: inspirational footer ──────────────────────── */}
       {!isAdmin && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex items-center gap-2 px-1"
-        >
+        <div className="flex items-center gap-2 px-1">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <p className="text-xs text-slate-400">
             Powered by <span className="font-semibold text-indigo-500">Anvesync</span> — Innovation & Entrepreneurial Forum
           </p>
-        </motion.div>
+        </div>
       )}
     </div>
   );

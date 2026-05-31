@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           title: `Referral Update`,
           message: `Your referral ${cand.fullName} has been ${body.stage === "selected" ? "selected 🎉" : "rejected"}.`,
           type: "info",
-          link: "/dashboard/my-referrals",
+          link: "/dashboard/recruitment",
         },
       });
     }

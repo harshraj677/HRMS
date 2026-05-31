@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   if (payload.role === "admin") {
     whereEmployeeId = filterEmployeeId ?? undefined;
-    take = filterEmployeeId ? 60 : 200;
+    take = filterEmployeeId ? 60 : 60;
   } else {
     whereEmployeeId = payload.id;
     take = 60;
@@ -42,10 +42,24 @@ export async function GET(req: NextRequest) {
     ipAddress: payload.role === "admin" ? r.ipAddress : undefined,
     device: payload.role === "admin" ? r.device : undefined,
     distanceFromOffice: r.distanceFromOffice,
-    checkInPhoto: r.checkInPhoto ?? null,
-    checkOutPhoto: r.checkOutPhoto ?? null,
+    hasCheckInPhoto:  !!r.checkInPhoto,
+    hasCheckOutPhoto: !!r.checkOutPhoto,
+    checkInAddress:   r.checkInAddress  ?? null,
+    checkOutAddress:  r.checkOutAddress ?? null,
     checkInAccuracy: r.checkInAccuracy ?? null,
     checkOutAccuracy: r.checkOutAccuracy ?? null,
+    faceVerified: r.faceVerified ?? null,
+    faceScore: r.faceScore ?? null,
+    needsReview: r.needsReview,
+    policyResult: r.policyResult ?? null,
+    isRemote: r.isRemote,
+    manualOverride: r.manualOverride,
+    overrideNote: r.overrideNote ?? null,
+    livenessResult: r.livenessResult ?? null,
+    livenessScore: r.livenessScore ?? null,
+    reviewStatus: r.reviewStatus,
+    reviewedAt: r.reviewedAt ?? null,
+    reviewNotes: r.reviewNotes ?? null,
     fullName: r.employee.fullName,
   }));
 

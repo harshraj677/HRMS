@@ -13,20 +13,33 @@ export async function GET(req: NextRequest) {
   );
 
   if (payload.role === "admin") {
-    const [totalEmployees, presentToday, lateToday, onLeave, pendingLeaveRequests] =
-      await Promise.all([
-        prisma.employee.count({ where: { role: { not: "admin" } } }),
-        prisma.attendance.count({ where: { date: todayDate, checkIn: { not: null } } }),
-        prisma.attendance.count({ where: { date: todayDate, status: "late" } }),
-        prisma.leaveRequest.count({
-          where: {
-            status: "approved",
-            startDate: { lte: todayDate },
-            endDate: { gte: todayDate },
-          },
-        }),
-        prisma.leaveRequest.count({ where: { status: "pending" } }),
-      ]);
+    const [
+      totalEmployees,
+      presentToday,
+      lateToday,
+      onLeave,
+      pendingLeaveRequests,
+      openJobs,
+      pendingPayrolls,
+      openTickets,
+      activeStartups,
+    ] = await Promise.all([
+      prisma.employee.count({ where: { role: { not: "admin" }, status: "active", deletedAt: null } }),
+      prisma.attendance.count({ where: { date: todayDate, checkIn: { not: null } } }),
+      prisma.attendance.count({ where: { date: todayDate, status: "late" } }),
+      prisma.leaveRequest.count({
+        where: {
+          status: "approved",
+          startDate: { lte: todayDate },
+          endDate: { gte: todayDate },
+        },
+      }),
+      prisma.leaveRequest.count({ where: { status: "pending" } }),
+      prisma.job.count({ where: { status: "active" } }),
+      prisma.payroll.count({ where: { paymentStatus: "pending" } }),
+      prisma.ticket.count({ where: { status: "open" } }),
+      prisma.startup.count({ where: { status: "Active", deletedAt: null } }),
+    ]);
 
     const percentPresent =
       totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 100) : 0;
@@ -38,6 +51,10 @@ export async function GET(req: NextRequest) {
       onLeave,
       pendingLeaveRequests,
       percentPresent,
+      openJobs,
+      pendingPayrolls,
+      openTickets,
+      activeStartups,
     });
   }
 

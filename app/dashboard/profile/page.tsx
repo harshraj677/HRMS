@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -88,14 +88,12 @@ export default function ProfilePage() {
         <div className="h-28 bg-gradient-to-r from-indigo-600 via-violet-500 to-purple-600" />
         <div className="px-6 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
-            <Avatar className="h-24 w-24 ring-4 ring-white shadow-xl">
-              {profileImg
-                ? <AvatarImage src={profileImg} alt={employee.fullName} />
-                : <AvatarFallback className="text-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-bold">
-                    {getInitials(employee.fullName)}
-                  </AvatarFallback>
-              }
-            </Avatar>
+            <AvatarUploader
+              employeeId={userId}
+              currentAvatar={profileImg}
+              name={employee.fullName}
+              size="lg"
+            />
             <div className="flex-1 min-w-0 pt-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold text-slate-900">{employee.fullName}</h2>

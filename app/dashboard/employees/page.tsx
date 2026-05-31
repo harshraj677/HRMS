@@ -23,7 +23,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -428,7 +428,7 @@ export default function EmployeesPage() {
                 >
                   <div className="flex items-start gap-3">
                     <Avatar className="h-11 w-11 shrink-0">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${emp.fullName}`} />
+                      
                       <AvatarFallback className="text-sm bg-indigo-100 text-indigo-700 font-bold">
                         {getInitials(emp.fullName)}
                       </AvatarFallback>
@@ -525,7 +525,7 @@ export default function EmployeesPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
-                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${emp.fullName}`} />
+                            
                             <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700 font-semibold">
                               {getInitials(emp.fullName)}
                             </AvatarFallback>

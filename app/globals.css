@@ -66,8 +66,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -96,12 +95,15 @@
 
   .scrollbar-none {
     -ms-overflow-style: none;
+    /* stylelint-disable-next-line property-no-unknown */
     scrollbar-width: none;
   }
 }
 
 @layer utilities {
   .text-balance {
+    overflow-wrap: break-word;
+    /* stylelint-disable-next-line property-no-unknown */
     text-wrap: balance;
   }
 
@@ -124,8 +126,8 @@
   /* Glass morphism */
   .glass {
     background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
 

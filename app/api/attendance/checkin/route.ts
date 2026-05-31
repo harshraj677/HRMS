@@ -5,6 +5,8 @@ import { isWithinGeofence, getAttendanceStatus, OFFICE_LOCATION } from "@/lib/ge
 import { evaluatePolicy } from "@/lib/policyEngine";
 import { getDefaultLivenessAdapter, shouldBlockOnLiveness, shouldFlagLiveness } from "@/lib/livenessAdapter";
 import type { LivenessClientEvidence, LivenessEnforcement, LivenessResult } from "@/lib/livenessAdapter";
+import { fireAttendanceAudit } from "@/lib/attendanceAudit";
+import { reverseGeocode } from "@/lib/geocode";
 
 const DEFAULT_OFFICE = {
   wifiName: "",
@@ -198,6 +200,7 @@ export async function POST(req: NextRequest) {
 
   const livenessFlagged = shouldFlagLiveness(livenessResult, livenessEnforcement);
   const combinedNeedsReview = needsReview || policyEval.addNeedsReview || livenessFlagged;
+  const reviewStatus = combinedNeedsReview ? "flagged" : "auto";
 
   const created = await prisma.attendance.create({
     data: {
@@ -233,6 +236,8 @@ export async function POST(req: NextRequest) {
       isRemote: policyEval.isRemote,
       manualOverride: overrideRequested && policyEval.manualOverrideAllowed,
       overrideNote: overrideRequested ? overrideNote : null,
+      // Phase 5 review
+      reviewStatus,
       // Phase 4 liveness
       livenessResult: livenessEvidence ? livenessResult.result : null,
       livenessScore: livenessEvidence ? livenessResult.score : null,
@@ -246,24 +251,25 @@ export async function POST(req: NextRequest) {
     select: { id: true },
   });
 
-  // Fire-and-forget attendance audit entry
-  try {
-    const { fireAttendanceAudit } = await import("@/lib/attendanceAudit");
-    fireAttendanceAudit({
-      attendanceId: created.id,
-      actorId: payload.id,
-      action: "created",
-      metadata: {
-        latitude,
-        longitude,
-        faceScore,
-        faceVerified,
-        policyResult: policyEval,
-      },
-    });
-  } catch (err) {
-    console.error("Failed to schedule attendance audit:", err);
-  }
+  // Fire-and-forget reverse geocoding — saves address without blocking response
+  void reverseGeocode(latitude, longitude).then((address) =>
+    prisma.attendance.update({ where: { id: created.id }, data: { checkInAddress: address } }).catch(() => {})
+  );
+
+  // Fire-and-forget attendance audit entry (Phase 5)
+  fireAttendanceAudit({
+    attendanceId: created.id,
+    actorId: payload.id,
+    action: combinedNeedsReview ? "flagged" : "created",
+    metadata: {
+      faceScore,
+      faceVerified,
+      livenessResult: livenessResult.result,
+      livenessScore: livenessResult.score,
+      policyStatus: policyEval.status,
+      reviewStatus,
+    },
+  });
 
   return NextResponse.json(
     {

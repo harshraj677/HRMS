@@ -48,6 +48,10 @@ export interface AttendanceRecord {
   ipAddress: string | null;
   device: string | null;
   distanceFromOffice: number | null;
+  checkInAddress?: string | null;
+  checkOutAddress?: string | null;
+  checkInPhoto?: string | null;
+  checkOutPhoto?: string | null;
   fullName?: string;
 }
 
@@ -56,6 +60,8 @@ export interface TodayAttendance {
   checkOut: string | null;
   status: string;
   hours: number | null;
+  checkInAddress?: string | null;
+  checkOutAddress?: string | null;
 }
 
 // ─── Leave ───────────────────────────────────────────────────────────────────

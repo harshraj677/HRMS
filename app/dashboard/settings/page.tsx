@@ -104,16 +104,60 @@ export default function SettingsPage() {
   });
   const [officeSaving, setOfficeSaving] = useState(false);
   const [detectingIp, setDetectingIp] = useState(false);
+  const [phase3Enabled, setPhase3Enabled] = useState(false);
+  const [phase3Saving, setPhase3Saving] = useState(false);
+  const [livenessLevel, setLivenessLevel] = useState<"off" | "soft" | "hard">("off");
+  const [livenessSaving, setLivenessSaving] = useState(false);
 
   useEffect(() => {
     if (authUser?.role !== "admin") return;
     fetch("/api/settings")
       .then(r => r.json())
-      .then(data => {
-        if (data) setOfficeSettings(data);
-      })
+      .then(data => { if (data) setOfficeSettings(data); })
+      .catch(() => {});
+    fetch("/api/settings/phase3")
+      .then(r => r.json())
+      .then(data => { if (typeof data?.enabled === "boolean") setPhase3Enabled(data.enabled); })
+      .catch(() => {});
+    fetch("/api/settings/liveness")
+      .then(r => r.json())
+      .then(data => { if (data?.level) setLivenessLevel(data.level); })
       .catch(() => {});
   }, [authUser?.role]);
+
+  const saveLiveness = async (level: "off" | "soft" | "hard") => {
+    setLivenessSaving(true);
+    try {
+      const res = await fetch("/api/settings/liveness", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level }),
+      });
+      if (res.ok) {
+        setLivenessLevel(level);
+        toast.success(`Liveness enforcement set to "${level}".`);
+      } else {
+        toast.error("Failed to update liveness setting.");
+      }
+    } catch { toast.error("Network error."); } finally { setLivenessSaving(false); }
+  };
+
+  const savePhase3 = async (enabled: boolean) => {
+    setPhase3Saving(true);
+    try {
+      const res = await fetch("/api/settings/phase3", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) {
+        setPhase3Enabled(enabled);
+        toast.success(`Geofence policy engine ${enabled ? "enabled" : "disabled"}.`);
+      } else {
+        toast.error("Failed to update setting.");
+      }
+    } catch { toast.error("Network error."); } finally { setPhase3Saving(false); }
+  };
 
   const onSaveProfile = async (data: ProfileData) => {
     if (!authUser) return;
@@ -510,6 +554,77 @@ export default function SettingsPage() {
                       {officeSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Saving...</> : "Save Office Settings"}
                     </Button>
                   </div>
+                </div>
+
+                {/* Phase 3 feature flag */}
+                <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                      Geofence Policy Engine (Phase 3)
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      When enabled, attendance is evaluated against your configured policies and geofences.
+                      When disabled, the simple single-circle check above applies.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      aria-label="Toggle Phase 3 policy engine"
+                      disabled={phase3Saving}
+                      onClick={() => savePhase3(!phase3Enabled)}
+                      className={cn(
+                        "relative w-10 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50",
+                        phase3Enabled ? "bg-indigo-600" : "bg-slate-200"
+                      )}
+                    >
+                      <span className={cn(
+                        "absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                        phase3Enabled && "translate-x-4"
+                      )} />
+                    </button>
+                    <span className="text-sm font-medium text-slate-700">
+                      {phase3Enabled ? "Enabled — using policies & geofences" : "Disabled — using legacy single-circle check"}
+                    </span>
+                    {phase3Saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />}
+                  </div>
+                </div>
+
+                {/* Phase 4 — liveness enforcement */}
+                <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      Liveness Detection (Phase 4)
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      During check-in/check-out a 3-second blink challenge runs to detect photo and screen-replay spoofs.
+                      Choose how failures are handled.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(["off", "soft", "hard"] as const).map(level => (
+                      <button key={level} type="button" disabled={livenessSaving}
+                        onClick={() => saveLiveness(level)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-4 py-2 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50",
+                          livenessLevel === level
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 text-slate-500 hover:border-slate-300"
+                        )}>
+                        {level === "off" && "Off (advisory only)"}
+                        {level === "soft" && "Soft — flag for review"}
+                        {level === "hard" && "Hard — block check-in"}
+                      </button>
+                    ))}
+                    {livenessSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 self-center" />}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    <strong>Off:</strong> result logged but never blocks. &nbsp;
+                    <strong>Soft:</strong> failed liveness flags the record for HR review. &nbsp;
+                    <strong>Hard:</strong> employee must retry or request manual review.
+                  </p>
                 </div>
               </div>
             </TabsContent>
