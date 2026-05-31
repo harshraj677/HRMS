@@ -80,6 +80,7 @@ export default function EmployeesPage() {
     email: string;
     password: string;
     emailSent: boolean;
+    role: string;
   } | null>(null);
   const [copiedField, setCopiedField] = useState<"email" | "password" | null>(null);
   const [autoCloseCount, setAutoCloseCount] = useState<number | null>(null);
@@ -131,6 +132,7 @@ export default function EmployeesPage() {
       email: data.email.trim().toLowerCase(),
       password: result.generatedPassword,
       emailSent: result.emailSent ?? false,
+      role: result.role ?? data.role,
     });
     setStep("credentials");
   };
@@ -181,7 +183,11 @@ export default function EmployeesPage() {
                 <DialogHeader>
                   <DialogTitle className="text-lg font-bold text-slate-900">
                     {step === "credentials"
-                      ? credentials?.emailSent ? "Employee Onboarded ✓" : "Account Created"
+                      ? credentials?.emailSent
+                        ? "Employee Onboarded ✓"
+                        : credentials?.role === "admin"
+                        ? "Admin Account Created"
+                        : "Account Created"
                       : "Add New Employee"}
                   </DialogTitle>
                   {step === "form" && (
@@ -192,8 +198,9 @@ export default function EmployeesPage() {
                 {step === "credentials" && credentials ? (
                   <div className="space-y-4 mt-1">
 
-                    {/* Status banner */}
+                    {/* Status banner — three states */}
                     {credentials.emailSent ? (
+                      /* ✅ Email sent successfully */
                       <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3.5">
                         <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
                           <Send className="w-4 h-4 text-emerald-600" />
@@ -210,7 +217,21 @@ export default function EmployeesPage() {
                           </span>
                         )}
                       </div>
+                    ) : credentials.role === "admin" ? (
+                      /* ℹ️ Admin account — email intentionally skipped */
+                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-amber-800">Email skipped for Admin account</p>
+                          <p className="text-xs text-amber-700/80 mt-0.5">
+                            Share these credentials securely — they will not be emailed.
+                          </p>
+                        </div>
+                      </div>
                     ) : (
+                      /* ❌ Employee email — delivery failed */
                       <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5">
                         <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
                           <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -258,7 +279,9 @@ export default function EmployeesPage() {
                           : "bg-indigo-600 hover:bg-indigo-700 text-white"
                       )}
                     >
-                      {credentials.emailSent ? "Done" : "Done — I've saved the credentials"}
+                      {credentials.emailSent
+                        ? "Done"
+                        : "Done — I've saved the credentials"}
                     </button>
                   </div>
                 ) : (

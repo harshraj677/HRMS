@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
   const randomPassword = crypto.randomBytes(4).toString("hex") + "A1!";
   const passwordHash = await bcrypt.hash(randomPassword, 12);
 
+  const role: string = body.role || "employee";
+
   const employee = await prisma.employee.create({
     data: {
       fullName: body.fullName.trim(),
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
       phone: body.phone?.trim() || null,
       department: body.department?.trim() || null,
       position: body.position?.trim() || null,
-      role: body.role || "employee",
+      role,
       passwordHash,
       leaveBalance: body.leaveBalance ?? 18,
       mustChangePassword: true,
@@ -76,8 +78,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const emailResult = await sendEmployeeEmail(emailAddr, body.fullName.trim(), randomPassword);
-  const emailSent = emailResult.success;
+  // Admin accounts skip automated email — the creator sees the password on screen
+  // and shares it through a secure channel of their choice.
+  let emailSent = false;
+  if (role !== "admin") {
+    const emailResult = await sendEmployeeEmail(emailAddr, body.fullName.trim(), randomPassword);
+    emailSent = emailResult.success;
+  }
 
   await prisma.notification.create({
     data: {
@@ -93,6 +100,7 @@ export async function POST(req: NextRequest) {
     {
       id: employee.id,
       email: emailAddr,
+      role,
       emailSent,
       generatedPassword: randomPassword,
     },
