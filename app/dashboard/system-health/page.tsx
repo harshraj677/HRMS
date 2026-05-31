@@ -101,7 +101,7 @@ export default function SystemHealthPage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 {[
-                  ["Platform",    "Anvesync HRMS"],
+                  ["Platform",    "AnveCore HRMS"],
                   ["Version",     "7.0.0 — Final"],
                   ["Framework",   "Next.js 15.x"],
                   ["Database",    "MongoDB Atlas"],

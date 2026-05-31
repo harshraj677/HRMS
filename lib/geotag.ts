@@ -113,7 +113,7 @@ export function applyGeotagWatermark(opts: GeotagOptions): Promise<string> {
       ctx.font         = `600 ${Math.round(fontSize * 0.70)}px system-ui, sans-serif`;
       ctx.textAlign    = "right";
       ctx.textBaseline = "top";
-      ctx.fillText("Anvesync HRMS", W - PAD, barY + 6);
+      ctx.fillText("AnveCore HRMS", W - PAD, barY + 6);
 
       resolve(canvas.toDataURL("image/jpeg", 0.88));
     };
@@ -163,7 +163,7 @@ export async function clientReverseGeocode(lat: number, lng: number): Promise<st
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "Anvesync HRMS/1.0" },
+      headers: { "User-Agent": "AnveCore HRMS/1.0" },
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) throw new Error("Failed");

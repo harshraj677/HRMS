@@ -100,10 +100,10 @@ export default function LoginPage() {
           className="relative flex items-center gap-3"
         >
           <div className="flex items-center justify-center w-14 h-14 rounded-xl overflow-hidden shadow-xl border border-white/20 bg-white">
-            <img src="/logo.jpg" alt="Anvesync Logo" className="w-[120%] h-[120%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/logo.jpg" alt="AnveCore HRMS Logo" className="w-[120%] h-[120%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           </div>
           <div>
-            <p className="font-bold text-white text-3xl tracking-wide leading-tight">Anvesync</p>
+            <p className="font-bold text-white text-3xl tracking-wide leading-tight">AnveCore HRMS</p>
           </div>
         </motion.div>
 
@@ -153,7 +153,7 @@ export default function LoginPage() {
           transition={{ delay: 0.8 }}
           className="relative text-slate-500 text-xs"
         >
-          © 2026 Anvesync Innovation & Entrepreneurial Forum. All rights reserved.
+          © 2026 AnveCore HRMS — Anvesana Innovation &amp; Entrepreneurial Forum. All rights reserved.
         </motion.p>
       </div>
 
@@ -163,10 +163,10 @@ export default function LoginPage() {
         {/* Mobile brand header */}
         <div className="lg:hidden flex items-center gap-3 mb-10 self-start">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-white">
-            <img src="/logo.jpg" alt="Anvesync Logo" className="w-[120%] h-[120%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/logo.jpg" alt="AnveCore HRMS Logo" className="w-[120%] h-[120%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           </div>
           <div>
-            <p className="font-bold text-slate-900 text-2xl tracking-wide leading-tight">Anvesync</p>
+            <p className="font-bold text-slate-900 text-2xl tracking-wide leading-tight">AnveCore HRMS</p>
           </div>
         </div>
 
@@ -183,7 +183,7 @@ export default function LoginPage() {
           {/* Heading */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
-            <p className="text-slate-500 mt-1.5 text-[15px]">Sign in to your Anvesync account</p>
+            <p className="text-slate-500 mt-1.5 text-[15px]">Sign in to your AnveCore HRMS account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 inputMode="email"
-                placeholder="you@anvesync.org"
+                placeholder="you@anvecore.org"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => {

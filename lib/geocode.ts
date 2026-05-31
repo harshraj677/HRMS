@@ -11,7 +11,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "Anvesync HRMS/1.0 (contact@anvesana.org)",
+        "User-Agent": "AnveCore HRMS/1.0 (contact@anvesana.org)",
         Accept: "application/json",
       },
       signal: AbortSignal.timeout(5000),

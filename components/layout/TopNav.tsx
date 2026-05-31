@@ -101,12 +101,12 @@ export function TopNav() {
         <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center overflow-hidden">
           <img
             src="/logo.jpg"
-            alt="Anvesync"
+            alt="AnveCore"
             className="w-full h-full object-cover"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         </div>
-        <span className="font-bold text-slate-900 text-sm">Anvesync</span>
+        <span className="font-bold text-slate-900 text-sm">AnveCore</span>
       </div>
 
       {/* Desktop page title */}

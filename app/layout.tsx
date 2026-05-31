@@ -10,13 +10,13 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Anvesync HRMS",
-    template: "%s | Anvesync HRMS",
+    default: "AnveCore HRMS",
+    template: "%s | AnveCore HRMS",
   },
   description: "Internal Employee Management Platform for Anvesana Innovation & Entrepreneurial Forum",
   keywords: ["employee management", "HR", "attendance", "leave management"],
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Anvesync" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "AnveCore HRMS" },
 };
 
 export default function RootLayout({

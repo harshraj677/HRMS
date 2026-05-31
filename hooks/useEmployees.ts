@@ -80,7 +80,8 @@ export function useCreateEmployee() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       if (data.emailSent) {
         toast.success(`Welcome email sent successfully to ${data.email}`);
-      } else {
+      } else if (data.role !== "admin") {
+        // Only show delivery failure error for employees
         toast.error("Email delivery failed — credentials shown for manual sharing.");
       }
     },

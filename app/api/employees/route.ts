@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   await prisma.notification.create({
     data: {
       recipientId: employee.id,
-      title: "Welcome to Anvesync!",
+      title: `Welcome to ${process.env.APP_NAME || "AnveCore HRMS"}!`,
       message: "Your account is ready. Check your email for login credentials.",
       type: "welcome",
       link: "/dashboard",

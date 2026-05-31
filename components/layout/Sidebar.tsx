@@ -187,7 +187,7 @@ export function Sidebar() {
         <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden bg-indigo-600 shadow-sm">
           <img
             src="/logo.jpg"
-            alt="Anvesync"
+            alt="AnveCore"
             className="w-full h-full object-cover"
             onError={(e) => {
               e.currentTarget.style.display = "none";
@@ -197,10 +197,10 @@ export function Sidebar() {
         {!collapsed && (
           <div className="overflow-hidden">
             <p className="font-bold text-slate-900 text-[15px] tracking-tight leading-none">
-              Anvesync
+              AnveCore HRMS
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5 leading-none tracking-wide uppercase">
-              HRMS Platform
+              HR Management
             </p>
           </div>
         )}
