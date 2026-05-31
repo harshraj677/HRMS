@@ -402,9 +402,10 @@ export default function DashboardPage() {
                 <p className="text-xs text-slate-400 mt-0.5">No pending leave requests</p>
               </div>
             ) : (
-              pendingLeaves.slice(0, 5).map((leave: any, i: number) => (
-                                  <div
-                    className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/70 transition-colors"
+              pendingLeaves.slice(0, 5).map((leave: any) => (
+                <div
+                  key={leave.id}
+                  className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/70 transition-colors"
                 >
                   <Avatar className="h-9 w-9 shrink-0">
                     <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">

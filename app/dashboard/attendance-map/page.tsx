@@ -187,7 +187,7 @@ function AttendanceMapContent() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">Today's Check-ins</h3>
+            <h3 className="text-base font-semibold text-slate-900">Today&apos;s Check-ins</h3>
             <p className="text-xs text-slate-400 mt-0.5">Geotagged selfies with live location addresses</p>
           </div>
           <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">

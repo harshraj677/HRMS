@@ -443,7 +443,7 @@ function ReviewQueueContent() {
                               {record.device && <p className="flex items-center gap-1 text-slate-500"><Smartphone className="w-3 h-3" /> {record.device.slice(0, 50)}</p>}
                               {record.distanceFromOffice != null && <p className="flex items-center gap-1 text-slate-500"><MapPin className="w-3 h-3" /> {Math.round(record.distanceFromOffice)}m from office</p>}
                               {record.overrideNote && <p className="flex items-start gap-1 text-amber-700"><AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" /> {record.overrideNote}</p>}
-                              {record.reviewNotes && <p className="text-slate-600 italic">"{record.reviewNotes}"</p>}
+                              {record.reviewNotes && <p className="text-slate-600 italic">&quot;{record.reviewNotes}&quot;</p>}
                             </div>
                           </div>
                         </td>

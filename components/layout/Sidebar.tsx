@@ -148,7 +148,7 @@ function getNavItems(role: string): NavGroup[] {
 }
 
 export function Sidebar() {
-  const { collapsed, setCollapsed } = useSidebar();
+  const { collapsed } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useAuth();
