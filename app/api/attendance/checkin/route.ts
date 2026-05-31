@@ -41,12 +41,14 @@ export async function POST(req: NextRequest) {
       ? (rawLiveness as LivenessClientEvidence)
       : null;
 
-  // Face verification result from client
+  // Face verification result from client — stored as evidence but never blocks or flags check-in
+  // Proof-only mode: the geotagged selfie is sufficient proof; face-match is advisory only.
   const faceV = body?.faceVerification ?? null;
   const faceScore: number | null = typeof faceV?.confidence === "number" ? faceV.confidence : null;
   const faceVerified: boolean | null = typeof faceV?.verified === "boolean" ? faceV.verified : null;
   const faceMethod: string | null = typeof faceV?.method === "string" ? faceV.method : null;
-  const needsReview: boolean = faceV?.needsReview === true;
+  // Face mismatch no longer triggers needsReview — only policy violations and liveness do
+  const needsReview = false;
 
   if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
     return NextResponse.json(

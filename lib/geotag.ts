@@ -32,8 +32,8 @@ export function applyGeotagWatermark(opts: GeotagOptions): Promise<string> {
       const W = canvas.width;
       const H = canvas.height;
 
-      // Bar occupies bottom 24% of the image (minimum 52px)
-      const barHeight = Math.max(52, Math.round(H * 0.24));
+      // Bar occupies bottom 30% of the image (minimum 64px) — extra room for GPS lines
+      const barHeight = Math.max(64, Math.round(H * 0.30));
       const barY      = H - barHeight;
 
       // ── Dark translucent bar ────────────────────────────────────────────
@@ -77,39 +77,41 @@ export function applyGeotagWatermark(opts: GeotagOptions): Promise<string> {
       ctx.font      = `600 ${fontSize}px system-ui, sans-serif`;
       ctx.fillText(truncate(opts.employeeName, 24), textX, lineBase);
 
-      // Date / time
+      // Date / time — includes day of week for legal clarity
       const dt = formatDateTime(opts.timestamp);
       ctx.fillStyle = "#f59e0b";
-      ctx.font      = `500 ${Math.round(fontSize * 0.85)}px 'Courier New', monospace`;
+      ctx.font      = `600 ${Math.round(fontSize * 0.85)}px 'Courier New', monospace`;
       ctx.fillText(dt, textX, lineBase + fontSize * 1.3);
 
-      // Address (up to 2 lines)
+      // Address (1 line only — we need room for GPS below)
       const addrFontSize = Math.round(fontSize * 0.78);
       ctx.fillStyle = "rgba(255,255,255,0.80)";
       ctx.font      = `400 ${addrFontSize}px system-ui, sans-serif`;
       const addrLines = wrapText(ctx, opts.address, W - textX - PAD);
-      addrLines.slice(0, 2).forEach((line, i) => {
-        ctx.fillText(line, textX, lineBase + fontSize * 2.7 + i * (addrFontSize + 3));
+      addrLines.slice(0, 1).forEach((line, i) => {
+        ctx.fillText(line, textX, lineBase + fontSize * 2.6 + i * (addrFontSize + 3));
       });
 
+      // GPS coordinates — prominent, colour-coded, two lines
+      const gpsFontSize = Math.max(8, Math.round(fontSize * 0.78));
+      const gpsY = lineBase + fontSize * 3.6;
+      ctx.font = `700 ${gpsFontSize}px 'Courier New', monospace`;
+      ctx.fillStyle = "#34d399"; // emerald for lat
+      ctx.fillText(`LAT  ${opts.latitude.toFixed(6)}°`, textX, gpsY);
+      ctx.fillStyle = "#60a5fa"; // blue for lng
+      ctx.fillText(`LNG  ${opts.longitude.toFixed(6)}°`, textX, gpsY + gpsFontSize + 3);
+
       // ── CHECK-IN / CHECK-OUT badge (bottom-left) ────────────────────────
-      const badgeY    = barY + barHeight - Math.round(barHeight * 0.28);
+      const badgeY    = barY + barHeight - Math.round(barHeight * 0.18);
       const badgeText = opts.type === "check-in" ? "● CHECK-IN" : "● CHECK-OUT";
       ctx.fillStyle = accentColor;
       ctx.font      = `700 ${Math.round(fontSize * 0.75)}px system-ui, sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
       ctx.fillText(badgeText, PAD, badgeY);
 
-      // ── GPS coordinates (bottom-right) ──────────────────────────────────
-      const coordText = `${opts.latitude.toFixed(5)}°, ${opts.longitude.toFixed(5)}°`;
-      const coordFontSize = Math.max(8, Math.round(fontSize * 0.72));
-      ctx.fillStyle    = "rgba(200,200,220,0.70)";
-      ctx.font         = `400 ${coordFontSize}px 'Courier New', monospace`;
-      ctx.textAlign    = "right";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(coordText, W - PAD, H - Math.round(barHeight * 0.08));
-
       // ── Brand watermark (top-right corner of bar) ───────────────────────
-      ctx.fillStyle    = "rgba(255,255,255,0.30)";
+      ctx.fillStyle    = "rgba(255,255,255,0.35)";
       ctx.font         = `600 ${Math.round(fontSize * 0.70)}px system-ui, sans-serif`;
       ctx.textAlign    = "right";
       ctx.textBaseline = "top";
@@ -126,12 +128,13 @@ export function applyGeotagWatermark(opts: GeotagOptions): Promise<string> {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDateTime(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad  = (n: number) => String(n).padStart(2, "0");
+  const days   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return (
-    `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}  ` +
-    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  );
+  const day  = days[d.getDay()];
+  const date = `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${day}, ${date}  ${time}`;
 }
 
 function truncate(str: string, max: number): string {

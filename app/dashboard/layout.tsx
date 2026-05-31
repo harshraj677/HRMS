@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Children } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import dynamic from "next/dynamic";
@@ -25,8 +26,9 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   const profileEmployeeId = user?.role === "admin" ? "" : userId;
   const { data: profile, isLoading } = useProfile(profileEmployeeId);
   const [dismissed, setDismissed] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Show wizard if: employee (not admin), profile loaded, onboarding not completed
+  // Show wizard if: employee (not admin), profile loaded, onboardingCompleted is false
   const showWizard =
     !dismissed &&
     !isLoading &&
@@ -34,6 +36,13 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
     user.role !== "admin" &&
     !!userId &&
     !(profile as any)?.onboardingCompleted;
+
+  const handleComplete = () => {
+    // Dismiss immediately so the UI responds
+    setDismissed(true);
+    // Force-invalidate the profile so the next mount reads fresh data from DB
+    queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+  };
 
   if (isLoading && user?.role !== "admin") {
     return <>{Children.toArray(children)}</>;
@@ -46,7 +55,7 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
         <OnboardingWizard
           employeeId={userId}
           employeeName={user?.fullName ?? ""}
-          onComplete={() => setDismissed(true)}
+          onComplete={handleComplete}
         />
       )}
     </>

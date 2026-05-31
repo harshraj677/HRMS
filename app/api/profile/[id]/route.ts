@@ -29,8 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const res = NextResponse.json({ profile });
-  // Profiles change infrequently — private cache 2 min, stale-while-revalidate 10 min
-  res.headers.set("Cache-Control", "private, max-age=120, stale-while-revalidate=600");
+  // No HTTP cache — profile includes onboardingCompleted which must be fresh after wizard save
+  res.headers.set("Cache-Control", "private, no-cache, must-revalidate");
   return res;
 }
 
@@ -47,15 +47,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!body) return NextResponse.json({ error: "Body required." }, { status: 400 });
 
   // Fields employees can edit on their own profile
+  // onboardingCompleted is employee-settable — it's a self-service flag set by the wizard
   const personalFields = [
     "dateOfBirth", "gender", "nationality", "maritalStatus",
     "addressLine1", "addressLine2", "city", "state", "postalCode", "country",
     "emergencyName", "emergencyRelation", "emergencyPhone", "emergencyEmail",
     "highestEducation", "institution", "fieldOfStudy", "graduationYear",
     "skills", "certifications", "experience", "bio", "avatar",
+    "onboardingCompleted",
   ];
   // Fields only admins can touch
-  const adminFields = ["employeeType", "joiningDate", "reportingManager", "workLocation", "shiftTiming", "employmentStatus", "onboardingCompleted"];
+  const adminFields = ["employeeType", "joiningDate", "reportingManager", "workLocation", "shiftTiming", "employmentStatus"];
 
   const allowedFields = payload.role === "admin" ? [...personalFields, ...adminFields] : personalFields;
   const data: Record<string, unknown> = {};
