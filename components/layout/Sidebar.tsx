@@ -36,6 +36,7 @@ import {
   CalendarRange,
   Network,
   UserCheck,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -110,6 +111,7 @@ function getNavItems(role: string): NavGroup[] {
       {
         group: "Insights",
         items: [
+          { label: "Performance", href: "/dashboard/performance", icon: Gauge },
           { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           { label: "Reports", href: "/dashboard/reports", icon: FileText },
           { label: "Activity Logs", href: "/dashboard/activity-logs", icon: Activity },
@@ -145,6 +147,7 @@ function getNavItems(role: string): NavGroup[] {
       items: [
         { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
         { label: "Leave Requests", href: "/dashboard/leave", icon: ClipboardList },
+        { label: "Performance", href: "/dashboard/performance", icon: Gauge },
         { label: "My Payroll", href: "/dashboard/my-payroll", icon: Banknote },
         { label: "My Profile", href: "/dashboard/profile", icon: UserCircle },
       ],

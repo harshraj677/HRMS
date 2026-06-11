@@ -32,6 +32,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard/attendance-review":{ title: "Review Queue",        description: "Review flagged attendance records" },
   "/dashboard/leave":            { title: "Leave Requests",      description: "Review and manage leave applications" },
   "/dashboard/policies":         { title: "Attendance Policies", description: "Configure attendance rules" },
+  "/dashboard/performance":      { title: "Performance",         description: "Performance scores, rankings, and insights" },
   "/dashboard/analytics":        { title: "Analytics",           description: "Attendance & performance insights" },
   "/dashboard/settings":         { title: "Settings",            description: "Configure your preferences" },
   "/dashboard/payroll":          { title: "Payroll",             description: "Manage salaries and payroll" },
