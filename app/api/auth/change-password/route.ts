@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const emp = await prisma.employee.findUnique({
     where: { id: payload.id },
-    select: { passwordHash: true },
+    select: { passwordHash: true, approvalStatus: true },
   });
   if (!emp) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
@@ -28,9 +28,14 @@ export async function POST(req: NextRequest) {
   if (!match) return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
 
   const newHash = await bcrypt.hash(body.newPassword, 12);
+  const data: Record<string, unknown> = { passwordHash: newHash, mustChangePassword: false };
+  if (emp.approvalStatus === "INVITED" || emp.approvalStatus === "PENDING_INVITATION") {
+    data.approvalStatus = "PROFILE_IN_PROGRESS";
+  }
+
   await prisma.employee.update({
     where: { id: payload.id },
-    data: { passwordHash: newHash, mustChangePassword: false },
+    data,
   });
 
   return NextResponse.json({ message: "Password changed successfully." });

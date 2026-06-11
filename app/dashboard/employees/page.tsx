@@ -55,19 +55,18 @@ import {
 } from "@/components/ui/table";
 import { useEmployees, useCreateEmployee, useDeleteEmployee, EmployeeData } from "@/hooks/useEmployees";
 import { useAuth } from "@/hooks/useAuth";
-import { cn, getInitials, getDepartmentColor } from "@/lib/utils";
+import { cn, getInitials, getDepartmentColor, getRoleBadgeColor } from "@/lib/utils";
+import { ROLES } from "@/lib/roles";
+import { getApprovalStatusBadge } from "@/lib/onboarding";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { motion } from "framer-motion";
 
 const departments = ["All", "Management", "Programs", "Design", "Incubation", "Content", "Engineering", "Marketing", "Operations"];
 
 const addSchema = z.object({
-  fullName:   z.string().min(2, "Name is required"),
   email:      z.string().email("Valid email required"),
-  phone:      z.string().optional(),
   department: z.string().optional(),
-  position:   z.string().optional(),
-  role:       z.enum(["admin", "employee"]),
+  role:       z.enum(ROLES),
 });
 type AddForm = z.infer<typeof addSchema>;
 
@@ -175,7 +174,7 @@ export default function EmployeesPage() {
                   className="flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.97] transition-all shadow-sm shadow-indigo-500/25 shrink-0"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Employee
+                  Invite Employee
                 </button>
               </DialogTrigger>
 
@@ -184,14 +183,14 @@ export default function EmployeesPage() {
                   <DialogTitle className="text-lg font-bold text-slate-900">
                     {step === "credentials"
                       ? credentials?.emailSent
-                        ? "Employee Onboarded ✓"
+                        ? "Invitation Sent ✓"
                         : credentials?.role === "admin"
                         ? "Admin Account Created"
                         : "Account Created"
-                      : "Add New Employee"}
+                      : "Invite Employee"}
                   </DialogTitle>
                   {step === "form" && (
-                    <p className="text-sm text-slate-400 mt-1">A temporary password will be emailed automatically.</p>
+                    <p className="text-sm text-slate-400 mt-1">They&apos;ll receive an email to set up their profile.</p>
                   )}
                 </DialogHeader>
 
@@ -287,77 +286,44 @@ export default function EmployeesPage() {
                 ) : (
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Full Name</Label>
-                      <Input
-                        {...register("fullName")}
-                        placeholder="e.g. Arjun Sharma"
-                        className={cn(
-                          "h-11 rounded-xl bg-slate-50 border-slate-200",
-                          "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
-                          errors.fullName && "border-red-400 bg-red-50/60"
-                        )}
-                      />
-                      {errors.fullName && <p className="text-xs text-red-500">{errors.fullName.message}</p>}
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</Label>
-                      <Input
-                        type="email"
-                        {...register("email")}
-                        placeholder="arjun@anvesana.org"
-                        className={cn(
-                          "h-11 rounded-xl bg-slate-50 border-slate-200",
-                          "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
-                          errors.email && "border-red-400 bg-red-50/60"
-                        )}
-                      />
-                      {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</Label>
+                    <Input
+                      type="email"
+                      {...register("email")}
+                      placeholder="arjun@anvesana.org"
+                      className={cn(
+                        "h-11 rounded-xl bg-slate-50 border-slate-200",
+                        "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
+                        errors.email && "border-red-400 bg-red-50/60"
+                      )}
+                    />
+                    {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Phone</Label>
-                      <Input
-                        {...register("phone")}
-                        placeholder="+91 99999 00000"
-                        className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Role</Label>
                       <Select
                         defaultValue="employee"
-                        onValueChange={(v) => setValue("role", v as "admin" | "employee")}
+                        onValueChange={(v) => setValue("role", v as (typeof ROLES)[number])}
                       >
                         <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="employee">Employee</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="hr">HR</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Department</Label>
+                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Department <span className="normal-case text-slate-400">(optional)</span></Label>
                       <Input
                         {...register("department")}
                         placeholder="Engineering"
-                        className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Position</Label>
-                      <Input
-                        {...register("position")}
-                        placeholder="Developer"
                         className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0"
                       />
                     </div>
@@ -377,9 +343,9 @@ export default function EmployeesPage() {
                       className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm shadow-indigo-500/20"
                     >
                       {createEmployee.isPending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
                       ) : (
-                        "Add Employee"
+                        "Send Invite"
                       )}
                     </button>
                   </div>
@@ -462,10 +428,18 @@ export default function EmployeesPage() {
                         <p className="text-sm font-semibold text-slate-800">{emp.fullName}</p>
                         <span className={cn(
                           "text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize",
-                          emp.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                          getRoleBadgeColor(emp.role)
                         )}>
                           {emp.role}
                         </span>
+                        {(() => {
+                          const badge = getApprovalStatusBadge(emp.approvalStatus);
+                          return badge.label !== "Active" ? (
+                            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", badge.className)}>
+                              {badge.label}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">{emp.position ?? "—"}</p>
 
@@ -582,12 +556,22 @@ export default function EmployeesPage() {
                       </TableCell>
 
                       <TableCell className="hidden sm:table-cell">
-                        <span className={cn(
-                          "text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize",
-                          emp.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-700"
-                        )}>
-                          {emp.role}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={cn(
+                            "text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize",
+                            getRoleBadgeColor(emp.role)
+                          )}>
+                            {emp.role}
+                          </span>
+                          {(() => {
+                            const badge = getApprovalStatusBadge(emp.approvalStatus);
+                            return badge.label !== "Active" ? (
+                              <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", badge.className)}>
+                                {badge.label}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                       </TableCell>
 
                       <TableCell className="hidden sm:table-cell">

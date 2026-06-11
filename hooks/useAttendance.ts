@@ -3,19 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-// ── Geofences ──────────────────────────────────────────────────────────────
-
-export function useGeofences() {
-  return useQuery({
-    queryKey: ["geofences"],
-    queryFn: async () => {
-      const res = await fetch("/api/geofences");
-      if (!res.ok) throw new Error("Failed to fetch geofences");
-      return (await res.json()).geofences as any[];
-    },
-  });
-}
-
 export function usePolicies() {
   return useQuery({
     queryKey: ["policies"],
@@ -84,8 +71,6 @@ export interface FaceVerificationData {
 export interface PolicyResultData {
   status: "ok" | "remote_ok" | "outside" | "blocked" | "review";
   distanceMeters: number | null;
-  geofenceId: string | null;
-  geofenceName: string | null;
   isRemote: boolean;
   policyName: string | null;
   enforcementMode: string;

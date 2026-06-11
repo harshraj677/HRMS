@@ -4,8 +4,9 @@
  * Evaluation order:
  *  1. Check feature flag ("phase3_policy" in Settings). If disabled → legacy "ok".
  *  2. Find the active default AttendancePolicy. If none → legacy "ok".
- *  3. Test point against each allowed Geofence (circle: Haversine, polygon: ray-casting).
- *  4. If inside any geofence → status "ok".
+ *  3. Test the check-in point against the configured office zone (Settings "office",
+ *     falling back to OFFICE_LOCATION), plus the policy's optional distance buffer.
+ *  4. If inside the office zone (or buffer) → status "ok".
  *  5. If remoteWorkAllowed → status "remote_ok", isRemote = true.
  *  6. enforcementMode "soft"           → status "outside" (allow, warn).
  *  7. enforcementMode "allow-if-matched"→ status "outside" (allow, flag).
@@ -14,8 +15,7 @@
  */
 
 import { prisma } from "@/lib/db";
-import { haversineDistance } from "@/lib/geofence";
-import { pointInPolygon, polygonCentroid, type GeoPoint } from "@/lib/polygonContainment";
+import { isWithinGeofence, OFFICE_LOCATION } from "@/lib/geofence";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,8 +25,6 @@ export interface PolicyResult {
   status: PolicyStatus;
   policyId: string | null;
   policyName: string | null;
-  geofenceId: string | null;
-  geofenceName: string | null;
   distanceMeters: number | null;
   isRemote: boolean;
   manualOverrideAllowed: boolean;
@@ -45,28 +43,6 @@ export interface EvalInput {
   overrideRequested?: boolean;
 }
 
-// ── Geometry helpers ───────────────────────────────────────────────────────
-
-type CircleGeom = { type: "circle"; lat: number; lng: number; radiusMeters: number };
-type PolygonGeom = { type: "polygon"; coordinates: GeoPoint[] };
-type GeomJson = CircleGeom | PolygonGeom;
-
-function testGeofence(
-  point: GeoPoint,
-  geom: GeomJson
-): { inside: boolean; distanceMeters: number | null } {
-  if (geom.type === "circle") {
-    const dist = Math.round(haversineDistance(point.lat, point.lng, geom.lat, geom.lng));
-    return { inside: dist <= geom.radiusMeters, distanceMeters: dist };
-  }
-  // polygon
-  const inside = pointInPolygon(point, geom.coordinates);
-  if (inside) return { inside: true, distanceMeters: 0 };
-  const centroid = polygonCentroid(geom.coordinates);
-  const dist = Math.round(haversineDistance(point.lat, point.lng, centroid.lat, centroid.lng));
-  return { inside: false, distanceMeters: dist };
-}
-
 // ── Main evaluation ────────────────────────────────────────────────────────
 
 export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
@@ -74,7 +50,7 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
   const flagRec = await prisma.settings.findUnique({ where: { key: "phase3_policy" } });
   const enabled = (flagRec?.value as { enabled?: boolean } | null)?.enabled === true;
   if (!enabled) {
-    return ok(null, null, null, null, null, false, "legacy", "Policy engine disabled (Phase 3 off)");
+    return ok(null, null, null, false, "legacy", "Policy engine disabled (Phase 3 off)");
   }
 
   // 2. Active default policy
@@ -83,76 +59,46 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
     orderBy: { createdAt: "desc" },
   });
   if (!policy) {
-    return ok(null, null, null, null, null, false, "none", "No policy configured");
+    return ok(null, null, null, false, "none", "No policy configured");
   }
 
-  const point: GeoPoint = { lat: input.latitude, lng: input.longitude };
+  // 3. Office zone check
+  const officeRec = await prisma.settings.findUnique({ where: { key: "office" } });
+  const office = (officeRec?.value as { latitude?: number; longitude?: number; radiusMeters?: number } | null) ?? {};
+  const officeLat = office.latitude ?? OFFICE_LOCATION.latitude;
+  const officeLng = office.longitude ?? OFFICE_LOCATION.longitude;
+  const officeRadius = office.radiusMeters ?? OFFICE_LOCATION.radiusMeters;
 
-  // 3. Check geofences
-  let matched: { id: string; name: string; dist: number | null } | null = null;
-  let closestDist: number | null = null;
-  let closestId: string | null = null;
-  let closestName: string | null = null;
+  const buffer = policy.allowedDistanceMeters ?? 0;
+  const { distance } = isWithinGeofence(input.latitude, input.longitude, officeLat, officeLng, officeRadius);
+  const withinOfficeZone = distance <= officeRadius + buffer;
 
-  if (policy.allowedGeofenceIds.length > 0) {
-    const gfDocs = await prisma.geofence.findMany({
-      where: { id: { in: policy.allowedGeofenceIds }, active: true },
-    });
-    for (const gf of gfDocs) {
-      const geom = gf.geometry as GeomJson;
-      const { inside, distanceMeters } = testGeofence(point, geom);
-      // Track closest geofence for reporting
-      if (distanceMeters !== null && (closestDist === null || distanceMeters < closestDist)) {
-        closestDist = distanceMeters;
-        closestId = gf.id;
-        closestName = gf.name;
-      }
-      if (inside) {
-        matched = { id: gf.id, name: gf.name, dist: distanceMeters };
-        break;
-      }
-    }
-  }
-
-  // 4. Inside geofence → always OK
-  if (matched) {
-    const needsReviewFace =
-      policy.faceVerifyRequired && input.faceVerified !== true;
+  // 4. Inside office zone → ok (or "review" if face verification required)
+  if (withinOfficeZone) {
+    const needsReviewFace = policy.faceVerifyRequired && input.faceVerified !== true;
     return {
       status: needsReviewFace ? "review" : "ok",
       policyId: policy.id,
       policyName: policy.name,
-      geofenceId: matched.id,
-      geofenceName: matched.name,
-      distanceMeters: matched.dist,
+      distanceMeters: distance,
       isRemote: false,
       manualOverrideAllowed: policy.manualOverrideAllowed,
       enforcementMode: policy.enforcementMode,
       message: needsReviewFace
-        ? `Checked in from ${matched.name} — face verification required`
-        : `Within ${matched.name}`,
+        ? "Checked in at office — face verification required"
+        : "Within office zone",
       blockReason: null,
       addNeedsReview: needsReviewFace,
     };
   }
 
-  // 5. allowedDistanceMeters buffer
-  if (policy.allowedDistanceMeters !== null && policy.allowedDistanceMeters !== undefined) {
-    if (closestDist !== null && closestDist <= policy.allowedDistanceMeters) {
-      return ok(policy.id, policy.name, closestId, closestName, closestDist, false,
-        policy.enforcementMode, `Within ${closestDist}m buffer of ${closestName ?? "allowed zone"}`);
-    }
-  }
-
-  // 6. Remote work
+  // 5. Remote work
   if (policy.remoteWorkAllowed) {
     return {
       status: "remote_ok",
       policyId: policy.id,
       policyName: policy.name,
-      geofenceId: null,
-      geofenceName: null,
-      distanceMeters: closestDist,
+      distanceMeters: distance,
       isRemote: true,
       manualOverrideAllowed: policy.manualOverrideAllowed,
       enforcementMode: policy.enforcementMode,
@@ -162,8 +108,8 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
     };
   }
 
-  // 7. Outside all geofences — apply enforcement mode
-  const distText = closestDist !== null ? `${closestDist}m from nearest zone` : "location not in any allowed area";
+  // 6. Outside office zone — apply enforcement mode
+  const distText = `${distance}m from office`;
 
   if (policy.enforcementMode === "hard") {
     // Allow if employee explicitly requested override
@@ -172,9 +118,7 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
         status: "outside",
         policyId: policy.id,
         policyName: policy.name,
-        geofenceId: closestId,
-        geofenceName: closestName,
-        distanceMeters: closestDist,
+        distanceMeters: distance,
         isRemote: false,
         manualOverrideAllowed: true,
         enforcementMode: policy.enforcementMode,
@@ -187,14 +131,12 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
       status: "blocked",
       policyId: policy.id,
       policyName: policy.name,
-      geofenceId: closestId,
-      geofenceName: closestName,
-      distanceMeters: closestDist,
+      distanceMeters: distance,
       isRemote: false,
       manualOverrideAllowed: policy.manualOverrideAllowed,
       enforcementMode: "hard",
       message: `Check-in blocked: ${distText}`,
-      blockReason: `You must be within an allowed location to check in. You are ${distText}.${policy.manualOverrideAllowed ? " Use 'Request Override' to proceed for review." : ""}`,
+      blockReason: `You must be within the office zone to check in. You are ${distText}.${policy.manualOverrideAllowed ? " Use 'Request Override' to proceed for review." : ""}`,
       addNeedsReview: false,
     };
   }
@@ -204,13 +146,11 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
     status: "outside",
     policyId: policy.id,
     policyName: policy.name,
-    geofenceId: closestId,
-    geofenceName: closestName,
-    distanceMeters: closestDist,
+    distanceMeters: distance,
     isRemote: false,
     manualOverrideAllowed: policy.manualOverrideAllowed,
     enforcementMode: policy.enforcementMode,
-    message: `Outside allowed area (${distText}) — check-in recorded with location flag`,
+    message: `Outside office zone (${distText}) — check-in recorded with location flag`,
     blockReason: null,
     addNeedsReview: true,
   };
@@ -219,8 +159,6 @@ export async function evaluatePolicy(input: EvalInput): Promise<PolicyResult> {
 function ok(
   policyId: string | null,
   policyName: string | null,
-  geofenceId: string | null,
-  geofenceName: string | null,
   distanceMeters: number | null,
   isRemote: boolean,
   enforcementMode: string,
@@ -230,8 +168,6 @@ function ok(
     status: "ok",
     policyId,
     policyName,
-    geofenceId,
-    geofenceName,
     distanceMeters,
     isRemote,
     manualOverrideAllowed: false,

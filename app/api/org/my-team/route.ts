@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
+import { canManageOrgStructure } from "@/lib/roles";
+import { getActiveEmployeesFlat, getOrgScopedEmployeeIds } from "@/lib/orgHierarchy";
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
@@ -8,12 +10,14 @@ export async function GET(req: NextRequest) {
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
 
-  // Admin sees everyone; otherwise only direct reports
+  // Admin/HR see everyone; otherwise the user's full reporting subtree (not just direct reports)
   const where: Record<string, unknown> = {
     OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
   };
-  if (payload.role !== "admin") {
-    where.reportingManagerId = payload.id;
+  if (!canManageOrgStructure(payload.role)) {
+    const allActive = await getActiveEmployeesFlat();
+    const scopedIds = getOrgScopedEmployeeIds(payload, allActive).filter((id) => id !== payload.id);
+    where.id = { in: scopedIds };
   }
 
   const employees = await prisma.employee.findMany({
@@ -51,7 +55,7 @@ export async function PUT(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const payload = verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session." }, { status: 401 });
-  if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!canManageOrgStructure(payload.role)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   if (!body?.employeeId) return NextResponse.json({ error: "employeeId required." }, { status: 400 });

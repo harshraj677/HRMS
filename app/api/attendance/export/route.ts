@@ -86,7 +86,6 @@ export async function GET(req: NextRequest) {
       base["Distance (m)"] = r.distanceFromOffice != null ? Math.round(r.distanceFromOffice) : "";
       const policy = r.policyResult as any;
       base["Policy Status"] = policy?.status ?? "";
-      base["Geofence"] = policy?.geofenceName ?? "";
       base["Device"] = r.device ?? "";
       base["IP"] = r.ipAddress ?? "";
     }

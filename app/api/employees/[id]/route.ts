@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { getAdminCaller, getClientIp, createArchive, createAuditLog } from "@/lib/secureDelete";
+import { ROLES } from "@/lib/roles";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = getTokenFromRequest(req);
@@ -121,7 +122,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.email) data.email = body.email.trim().toLowerCase();
     if (body.department !== undefined) data.department = body.department?.trim() || null;
     if (body.position !== undefined) data.position = body.position?.trim() || null;
-    if (body.role) data.role = body.role;
+    if (body.role) {
+      if (!ROLES.includes(body.role as (typeof ROLES)[number])) {
+        return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+      }
+      data.role = body.role;
+    }
     if (body.leaveBalance !== undefined) data.leaveBalance = Number(body.leaveBalance);
     if (body.reportingManagerId !== undefined) data.reportingManagerId = body.reportingManagerId || null;
   }

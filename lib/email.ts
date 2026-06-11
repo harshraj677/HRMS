@@ -16,9 +16,8 @@ const transporter = nodemailer.createTransport({
 
 // ── HTML template ─────────────────────────────────────────────────────────────
 
-function buildEmailHtml(name: string, email: string, password: string): string {
-  const loginUrl  = `${APP_URL}/login`;
-  const firstName = name.split(" ")[0];
+function buildEmailHtml(email: string, password: string): string {
+  const loginUrl = `${APP_URL}/login`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -70,15 +69,15 @@ function buildEmailHtml(name: string, email: string, password: string): string {
                 <tr>
                   <td align="center" style="padding-top:20px;">
                     <h1 style="color:#0f172a;font-size:26px;font-weight:800;margin:0;letter-spacing:-0.5px;">
-                      Welcome aboard, ${firstName}! 🎉
+                      Welcome to the team! 👋
                     </h1>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding-top:12px;padding-bottom:28px;">
                     <p style="color:#64748b;font-size:15px;line-height:1.7;margin:0;max-width:420px;">
-                      Your employee account on <strong style="color:#6366f1;">${APP_NAME}</strong> has been created.
-                      Use the credentials below to sign in for the first time.
+                      An account has been created for you on <strong style="color:#6366f1;">${APP_NAME}</strong>.
+                      Use the credentials below to sign in and complete your onboarding.
                     </p>
                   </td>
                 </tr>
@@ -121,11 +120,35 @@ function buildEmailHtml(name: string, email: string, password: string): string {
             <td style="background:#ffffff;padding:4px 40px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;text-align:center;">
               <a href="${loginUrl}"
                  style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:12px;letter-spacing:-0.2px;">
-                Login to ${APP_NAME} &rarr;
+                Complete Your Onboarding &rarr;
               </a>
               <p style="color:#94a3b8;font-size:12px;margin:12px 0 0;">
                 ${loginUrl}
               </p>
+            </td>
+          </tr>
+
+          <!-- WHAT HAPPENS NEXT -->
+          <tr>
+            <td style="background:#ffffff;padding:0 40px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef2ff;border:1px solid #e0e7ff;border-radius:10px;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <p style="color:#4338ca;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin:0 0 10px;">
+                      What happens next
+                    </p>
+                    <p style="color:#3730a3;font-size:13px;margin:0 0 6px;line-height:1.6;">
+                      1. Log in with the credentials above.
+                    </p>
+                    <p style="color:#3730a3;font-size:13px;margin:0 0 6px;line-height:1.6;">
+                      2. You'll be guided through a short profile setup.
+                    </p>
+                    <p style="color:#3730a3;font-size:13px;margin:0;line-height:1.6;">
+                      3. An admin will review and approve your profile.
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
@@ -193,22 +216,27 @@ function buildEmailHtml(name: string, email: string, password: string): string {
 
 // ── Plain-text fallback ───────────────────────────────────────────────────────
 
-function buildEmailText(name: string, email: string, password: string): string {
+function buildEmailText(email: string, password: string): string {
   const loginUrl = `${APP_URL}/login`;
   return [
-    `Welcome to ${APP_NAME}, ${name}!`,
+    `Welcome to ${APP_NAME}!`,
     ``,
-    `Your employee account has been created on ${APP_NAME}.`,
+    `An account has been created for you on ${APP_NAME}.`,
     ``,
     `LOGIN CREDENTIALS`,
     `─────────────────`,
     `Email:    ${email}`,
     `Password: ${password}`,
     ``,
-    `Login here: ${loginUrl}`,
+    `Complete your onboarding here: ${loginUrl}`,
+    ``,
+    `WHAT HAPPENS NEXT`,
+    `1. Log in with the credentials above.`,
+    `2. You'll be guided through a short profile setup.`,
+    `3. An admin will review and approve your profile.`,
     ``,
     `⚠ Security Notice: This is a temporary password.`,
-    `Please change it immediately after your first login.`,
+    `You will be prompted to change it on your first login.`,
     ``,
     `Regards,`,
     `${APP_NAME} HR Team`,
@@ -223,26 +251,26 @@ export interface EmailResult {
   error?: string;
 }
 
-export async function sendEmployeeEmail(
+export async function sendOnboardingInviteEmail(
   employeeEmail: string,
-  employeeName: string,
-  password: string
+  password: string,
+  role: string
 ): Promise<EmailResult> {
   const from = process.env.SMTP_FROM || `"${APP_NAME} HR Team" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`;
   try {
     await transporter.sendMail({
       from,
       to:      employeeEmail,
-      subject: `Welcome to ${APP_NAME} – Your Employee Account`,
-      html:    buildEmailHtml(employeeName, employeeEmail, password),
-      text:    buildEmailText(employeeName, employeeEmail, password),
+      subject: `Welcome to ${APP_NAME} – Complete Your Onboarding`,
+      html:    buildEmailHtml(employeeEmail, password),
+      text:    buildEmailText(employeeEmail, password),
     });
 
-    console.log(`✅ Welcome email sent to ${employeeEmail}`);
+    console.log(`✅ Onboarding invite email sent to ${employeeEmail} (role: ${role})`);
     return { success: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`❌ Failed to send welcome email to ${employeeEmail}:`, msg);
+    console.error(`❌ Failed to send onboarding invite email to ${employeeEmail}:`, msg);
     return { success: false, error: msg };
   }
 }

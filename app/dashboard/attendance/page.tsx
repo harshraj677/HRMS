@@ -151,7 +151,7 @@ function PolicyPill({ result, isRemote }: { result: any; isRemote?: boolean }) {
     );
     return (
       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-        <MapPin className="w-3 h-3" /> {result.geofenceName ?? "In zone"}
+        <MapPin className="w-3 h-3" /> On site
       </span>
     );
   }
@@ -651,7 +651,7 @@ export default function AttendancePage() {
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{record.distanceFromOffice <= 200 ? "Within geofence" : "Outside 200m geofence"}</p>
+                                  <p>{record.distanceFromOffice <= 200 ? "On site" : "Outside 200m office zone"}</p>
                                   {record.latitude && (
                                     <p className="text-[10px] text-slate-400">{record.latitude}, {record.longitude}</p>
                                   )}

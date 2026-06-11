@@ -1,25 +1,31 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  User, MapPin, PhoneCall, GraduationCap, Globe,
+  User, MapPin, PhoneCall, GraduationCap, Globe, Landmark,
   FileText, CheckCircle2, ChevronRight, ChevronLeft,
-  Loader2, Sparkles, Upload, X,
+  Loader2, Sparkles, Upload, X, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUpdateProfile, useUploadDocument } from "@/hooks/useProfile";
+import { useUpdateProfile, useUploadDocument, useUploadAvatar } from "@/hooks/useProfile";
+import { useUpdateEmployeeBasic } from "@/hooks/useEmployees";
+import { useSubmitOnboarding } from "@/hooks/useOnboarding";
 import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface WizardData {
+  // Identity (Employee model)
+  fullName?: string;
+  mobileNumber?: string;
   // Personal
   gender?: string;
   dateOfBirth?: string;
   bloodGroup?: string;
   maritalStatus?: string;
   nationality?: string;
+  alternatePhone?: string;
   // Address
   addressLine1?: string;
   addressLine2?: string;
@@ -45,9 +51,78 @@ interface WizardData {
   linkedinUrl?: string;
   githubUrl?: string;
   portfolioUrl?: string;
+  // Bank
+  bankAccountHolder?: string;
+  bankAccountNumber?: string;
+  bankIFSC?: string;
+  bankName?: string;
+}
+
+interface ProfileSnapshot {
+  avatar?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  maritalStatus?: string | null;
+  nationality?: string | null;
+  alternatePhone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  emergencyName?: string | null;
+  emergencyRelation?: string | null;
+  emergencyPhone?: string | null;
+  emergencyEmail?: string | null;
+  highestEducation?: string | null;
+  institution?: string | null;
+  fieldOfStudy?: string | null;
+  graduationYear?: number | null;
+  skills?: string[];
+  certifications?: string[];
+  experience?: string | null;
+  bankAccountHolder?: string | null;
+  bankAccountNumber?: string | null;
+  bankIFSC?: string | null;
+  bankName?: string | null;
 }
 
 const STORAGE_KEY = (id: string) => `anvecore_onboarding_${id}`;
+
+function buildInitialData(employeeName: string, phone: string | null | undefined, profile: ProfileSnapshot | null | undefined): WizardData {
+  const p = profile ?? {};
+  return {
+    fullName: employeeName ?? "",
+    mobileNumber: phone ?? "",
+    gender: p.gender ?? undefined,
+    dateOfBirth: p.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : undefined,
+    maritalStatus: p.maritalStatus ?? undefined,
+    nationality: p.nationality ?? undefined,
+    alternatePhone: p.alternatePhone ?? undefined,
+    addressLine1: p.addressLine1 ?? undefined,
+    addressLine2: p.addressLine2 ?? undefined,
+    city: p.city ?? undefined,
+    state: p.state ?? undefined,
+    postalCode: p.postalCode ?? undefined,
+    country: p.country ?? undefined,
+    emergencyName: p.emergencyName ?? undefined,
+    emergencyRelation: p.emergencyRelation ?? undefined,
+    emergencyPhone: p.emergencyPhone ?? undefined,
+    emergencyEmail: p.emergencyEmail ?? undefined,
+    highestEducation: p.highestEducation ?? undefined,
+    institution: p.institution ?? undefined,
+    fieldOfStudy: p.fieldOfStudy ?? undefined,
+    graduationYear: p.graduationYear ? String(p.graduationYear) : undefined,
+    skills: p.skills && p.skills.length > 0 ? p.skills.join(", ") : undefined,
+    certifications: p.certifications && p.certifications.length > 0 ? p.certifications.join(", ") : undefined,
+    experience: p.experience ?? undefined,
+    bankAccountHolder: p.bankAccountHolder ?? undefined,
+    bankAccountNumber: p.bankAccountNumber ?? undefined,
+    bankIFSC: p.bankIFSC ?? undefined,
+    bankName: p.bankName ?? undefined,
+  };
+}
 
 // ─── Step config ─────────────────────────────────────────────────────────────
 
@@ -58,6 +133,7 @@ const STEPS = [
   { id: "emergency",    label: "Emergency",  icon: PhoneCall },
   { id: "education",    label: "Education",  icon: GraduationCap },
   { id: "professional", label: "Links",      icon: Globe },
+  { id: "bank",         label: "Bank",       icon: Landmark },
   { id: "documents",    label: "Documents",  icon: FileText },
   { id: "complete",     label: "Complete",   icon: CheckCircle2 },
 ];
@@ -109,20 +185,32 @@ function SF({ label, field, data, set, options }: {
 interface Props {
   employeeId: string;
   employeeName: string;
+  phone?: string | null;
+  profile?: ProfileSnapshot | null;
+  rejectionReason?: string | null;
   onComplete: () => void;
 }
 
-export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props) {
+export function OnboardingWizard({ employeeId, employeeName, phone, profile, rejectionReason, onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => {
-    if (typeof window === "undefined") return {};
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY(employeeId)) ?? "{}"); } catch { return {}; }
+    if (typeof window !== "undefined") {
+      try {
+        const draft = JSON.parse(localStorage.getItem(STORAGE_KEY(employeeId)) ?? "{}");
+        if (Object.keys(draft).length > 0) return draft;
+      } catch { /* ignore malformed draft */ }
+    }
+    return buildInitialData(employeeName, phone, profile);
   });
   const [docFiles, setDocFiles] = useState<{ file: File; type: string; name: string }[]>([]);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar ?? null);
   const [saving, setSaving] = useState(false);
 
   const update = useUpdateProfile(employeeId);
+  const updateBasic = useUpdateEmployeeBasic(employeeId);
   const uploadDoc = useUploadDocument(employeeId);
+  const uploadAvatar = useUploadAvatar(employeeId);
+  const submitOnboarding = useSubmitOnboarding();
 
   // Persist draft to localStorage
   useEffect(() => {
@@ -135,17 +223,31 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
     setData((d) => ({ ...d, [k]: v }));
   }, []);
 
-  const firstName = employeeName.split(" ")[0];
+  const firstName = (data.fullName || employeeName || "").split(" ")[0] || "there";
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const updated = await uploadAvatar.mutateAsync(f);
+      setAvatarPreview(updated?.avatar ?? null);
+    } catch { /* toast handled by hook */ }
+    e.target.value = "";
+  }
 
   async function handleFinish() {
     setSaving(true);
     try {
+      // Save identity fields on the Employee record
+      await updateBasic.mutateAsync({ fullName: data.fullName, phone: data.mobileNumber });
+
       // Save profile data
       const profilePayload: Record<string, unknown> = { ...data, onboardingCompleted: true };
+      delete profilePayload.fullName;
+      delete profilePayload.mobileNumber;
       if (data.graduationYear) profilePayload.graduationYear = Number(data.graduationYear);
       if (data.skills) profilePayload.skills = data.skills.split(",").map((s) => s.trim()).filter(Boolean);
       if (data.certifications) profilePayload.certifications = data.certifications.split(",").map((s) => s.trim()).filter(Boolean);
-      delete profilePayload.experience_raw;
 
       await update.mutateAsync(profilePayload);
 
@@ -154,8 +256,11 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
         await uploadDoc.mutateAsync({ file: doc.file, documentName: doc.name, documentType: doc.type });
       }
 
+      // Submit profile for admin review
+      await submitOnboarding.mutateAsync();
+
       localStorage.removeItem(STORAGE_KEY(employeeId));
-      toast.success("Onboarding complete! Welcome aboard 🎉");
+      toast.success(rejectionReason ? "Resubmitted for review!" : "Submitted for review!");
       onComplete();
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -168,6 +273,7 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
     if (step < STEPS.length - 1) {
       // Auto-save at each step
       if (step > 0 && step < STEPS.length - 2) {
+        updateBasic.mutate({ fullName: data.fullName, phone: data.mobileNumber });
         update.mutate(data as Record<string, unknown>);
       }
       setStep((s) => s + 1);
@@ -177,6 +283,7 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
   }
 
   const isLast = step === STEPS.length - 1;
+  const isBusy = saving || update.isPending || updateBasic.isPending || submitOnboarding.isPending;
   const progress = (step / (STEPS.length - 1)) * 100;
 
   return (
@@ -215,6 +322,16 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
 
+              {rejectionReason && (
+                <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Corrections requested</p>
+                    <p className="text-sm text-amber-700 mt-0.5">{rejectionReason}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Step 0: Welcome */}
               {step === 0 && (
                 <div className="text-center py-6">
@@ -252,11 +369,14 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
                     <p className="text-sm text-slate-400 mt-0.5">Basic details about you</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
+                    <TF label="Full Name"     field="fullName"     data={data} set={set} placeholder="Your full name" />
+                    <TF label="Mobile Number" field="mobileNumber" data={data} set={set} type="tel" placeholder="+91 99999 00000" />
                     <SF label="Gender" field="gender" data={data} set={set} options={["Male","Female","Non-binary","Prefer not to say"]} />
                     <TF label="Date of Birth" field="dateOfBirth" data={data} set={set} type="date" />
                     <SF label="Blood Group" field="bloodGroup" data={data} set={set} options={["A+","A-","B+","B-","AB+","AB-","O+","O-"]} />
                     <SF label="Marital Status" field="maritalStatus" data={data} set={set} options={["Single","Married","Divorced","Widowed"]} />
                     <TF label="Nationality" field="nationality" data={data} set={set} placeholder="e.g. Indian" />
+                    <TF label="Alternate Phone (optional)" field="alternatePhone" data={data} set={set} type="tel" placeholder="+91 88888 00000" />
                   </div>
                 </div>
               )}
@@ -340,12 +460,56 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
                 </div>
               )}
 
-              {/* Step 6: Documents */}
+              {/* Step 6: Bank Details */}
               {step === 6 && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Bank Details</h2>
+                    <p className="text-sm text-slate-400 mt-0.5">For salary disbursement — visible only to HR/Admin</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <TF label="Account Holder Name" field="bankAccountHolder" data={data} set={set} placeholder="As per bank records" />
+                    </div>
+                    <TF label="Account Number" field="bankAccountNumber" data={data} set={set} placeholder="Bank account number" />
+                    <TF label="IFSC Code" field="bankIFSC" data={data} set={set} placeholder="e.g. SBIN0001234" />
+                    <div className="col-span-2">
+                      <TF label="Bank Name" field="bankName" data={data} set={set} placeholder="e.g. State Bank of India" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 7: Documents */}
+              {step === 7 && (
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Upload Documents</h2>
                     <p className="text-sm text-slate-400 mt-0.5">Add important documents — you can always upload more later</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block">Profile Photo</label>
+                    <label className={cn(
+                      "relative flex items-center gap-3 p-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all",
+                      avatarPreview ? "border-emerald-400 bg-emerald-50" : "border-slate-200 hover:border-violet-300 hover:bg-violet-50/50"
+                    )}>
+                      <input type="file" accept="image/*" aria-label="Upload profile photo" className="sr-only"
+                        onChange={handleAvatarChange} />
+                      {avatarPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarPreview} alt="Profile preview" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                          <Upload className="w-5 h-5 text-slate-300" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-700">{avatarPreview ? "Photo uploaded" : "Upload a profile photo"}</p>
+                        <p className="text-xs text-slate-400">JPEG or PNG · Max 5 MB</p>
+                      </div>
+                      {uploadAvatar.isPending && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 shrink-0" />}
+                    </label>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -391,8 +555,8 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
                 </div>
               )}
 
-              {/* Step 7: Complete */}
-              {step === 7 && (
+              {/* Step 8: Complete */}
+              {step === 8 && (
                 <div className="text-center py-6">
                   <motion.div
                     initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -400,9 +564,11 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
                     className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-500/30">
                     <CheckCircle2 className="w-10 h-10 text-white" />
                   </motion.div>
-                  <h2 className="text-2xl font-bold text-slate-900">You&apos;re all set, {firstName}!</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    {rejectionReason ? "Ready to resubmit, " : "You&apos;re all set, "}{firstName}!
+                  </h2>
                   <p className="text-slate-500 mt-2 max-w-md mx-auto">
-                    Your profile is being set up. Admins will review your documents shortly.
+                    Your profile is awaiting approval. Admins will review your details shortly.
                   </p>
                   <div className="mt-5 flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-2xl px-5 py-3 mx-auto w-fit">
                     <Sparkles className="w-4 h-4" />
@@ -432,12 +598,12 @@ export function OnboardingWizard({ employeeId, employeeName, onComplete }: Props
             ))}
           </div>
 
-          <button type="button" onClick={handleNext} disabled={saving || update.isPending}
+          <button type="button" onClick={handleNext} disabled={isBusy}
             className="flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 transition-all shadow-sm shadow-indigo-500/25">
-            {saving || update.isPending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />{isLast ? "Saving…" : "Saving…"}</>
+            {isBusy ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
             ) : isLast ? (
-              <><CheckCircle2 className="w-4 h-4" /> Complete Setup</>
+              <><CheckCircle2 className="w-4 h-4" /> {rejectionReason ? "Resubmit for Review" : "Submit for Review"}</>
             ) : step === 0 ? (
               <>Let&apos;s start <ChevronRight className="w-4 h-4" /></>
             ) : (

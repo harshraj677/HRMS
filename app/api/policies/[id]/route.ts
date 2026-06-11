@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const data: Record<string, unknown> = {};
   const allowed = [
-    "name", "enforcementMode", "allowedGeofenceIds", "allowedDistanceMeters",
+    "name", "enforcementMode", "allowedDistanceMeters",
     "remoteWorkAllowed", "manualOverrideAllowed", "faceVerifyRequired",
     "photoRetentionDays", "locationRetentionDays", "active", "isDefault",
   ];

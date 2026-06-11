@@ -25,12 +25,12 @@ import { useNotifications, useMarkRead, useMarkAllRead } from "@/hooks/useNotifi
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard":                  { title: "Dashboard",           description: "Overview & insights" },
   "/dashboard/employees":        { title: "Employees",           description: "Manage your team members" },
+  "/dashboard/onboarding":       { title: "Onboarding",          description: "Review and approve employee profiles" },
   "/dashboard/profile":          { title: "My Profile",          description: "Your personal details" },
   "/dashboard/attendance":       { title: "Attendance",          description: "Track and manage attendance" },
   "/dashboard/attendance-map":   { title: "Attendance Map",      description: "Live employee check-in locations" },
   "/dashboard/attendance-review":{ title: "Review Queue",        description: "Review flagged attendance records" },
   "/dashboard/leave":            { title: "Leave Requests",      description: "Review and manage leave applications" },
-  "/dashboard/geofences":        { title: "Geofences",           description: "Define office location boundaries" },
   "/dashboard/policies":         { title: "Attendance Policies", description: "Configure attendance rules" },
   "/dashboard/analytics":        { title: "Analytics",           description: "Attendance & performance insights" },
   "/dashboard/settings":         { title: "Settings",            description: "Configure your preferences" },
@@ -39,6 +39,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard/my-payroll":       { title: "My Payroll",          description: "Your salary history and payslips" },
   "/dashboard/departments":      { title: "Departments",         description: "Manage company departments" },
   "/dashboard/directory":        { title: "Directory",           description: "Find and connect with colleagues" },
+  "/dashboard/org-structure":    { title: "Organization Structure", description: "Visualize reporting lines and team hierarchy" },
   "/dashboard/my-team":          { title: "My Team",             description: "Manage your direct reports" },
   "/dashboard/announcements":    { title: "Announcements",       description: "Company news and updates" },
   "/dashboard/recruitment":      { title: "Recruitment",         description: "Manage jobs and candidates" },
@@ -56,12 +57,17 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 };
 
 const TYPE_DOT: Record<string, string> = {
-  leave:          "bg-indigo-500",
-  leave_approved: "bg-emerald-500",
-  leave_rejected: "bg-red-500",
-  welcome:        "bg-violet-500",
-  warning:        "bg-amber-500",
-  info:           "bg-slate-400",
+  leave:               "bg-indigo-500",
+  leave_approved:      "bg-emerald-500",
+  leave_rejected:      "bg-red-500",
+  welcome:             "bg-violet-500",
+  warning:             "bg-amber-500",
+  info:                "bg-slate-400",
+  onboarding_invite:   "bg-violet-500",
+  profile_submitted:   "bg-indigo-500",
+  profile_resubmitted: "bg-indigo-500",
+  onboarding_approved: "bg-emerald-500",
+  onboarding_rejected: "bg-red-500",
 };
 
 export function TopNav() {

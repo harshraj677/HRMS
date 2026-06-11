@@ -15,10 +15,17 @@ const OnboardingWizard = dynamic(
   () => import("@/components/onboarding/OnboardingWizard").then((m) => m.OnboardingWizard),
   { ssr: false }
 );
+const PendingApprovalScreen = dynamic(
+  () => import("@/components/onboarding/PendingApprovalScreen").then((m) => m.PendingApprovalScreen),
+  { ssr: false }
+);
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { getApprovalStatus } from "@/lib/onboarding";
+
+const WIZARD_STATUSES = ["INVITED", "PENDING_INVITATION", "PROFILE_IN_PROGRESS", "REJECTED"];
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { data: user } = useAuth();
@@ -28,20 +35,34 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   const [dismissed, setDismissed] = useState(false);
   const queryClient = useQueryClient();
 
-  // Show wizard if: employee (not admin), profile loaded, onboardingCompleted is false
+  const approvalStatus = getApprovalStatus(user?.approvalStatus);
+  const onboardingCompleted = !!(profile as any)?.onboardingCompleted;
+
+  // Show wizard if: employee (not admin), profile incomplete, and not yet submitted/approved
   const showWizard =
     !dismissed &&
     !isLoading &&
     !!user &&
     user.role !== "admin" &&
     !!userId &&
-    !(profile as any)?.onboardingCompleted;
+    !onboardingCompleted &&
+    WIZARD_STATUSES.includes(approvalStatus);
+
+  // Show pending screen once submitted, until an admin approves or rejects
+  const showPending =
+    !dismissed &&
+    !isLoading &&
+    !!user &&
+    user.role !== "admin" &&
+    !!userId &&
+    approvalStatus === "PROFILE_SUBMITTED";
 
   const handleComplete = () => {
     // Dismiss immediately so the UI responds
     setDismissed(true);
-    // Force-invalidate the profile so the next mount reads fresh data from DB
+    // Force-invalidate the profile/auth so the next mount reads fresh data from DB
     queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+    queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
   };
 
   if (isLoading && user?.role !== "admin") {
@@ -55,9 +76,13 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
         <OnboardingWizard
           employeeId={userId}
           employeeName={user?.fullName ?? ""}
+          phone={user?.phone}
+          profile={profile}
+          rejectionReason={approvalStatus === "REJECTED" ? user?.rejectionReason : null}
           onComplete={handleComplete}
         />
       )}
+      {!showWizard && showPending && <PendingApprovalScreen employeeName={user?.fullName ?? ""} />}
     </>
   );
 }

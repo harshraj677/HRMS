@@ -20,8 +20,6 @@ const config: CapacitorConfig = {
     captureInput: true,
     // Set to true when debugging with Chrome DevTools
     webContentsDebuggingEnabled: false,
-    // Back button closes dialogs before navigating back
-    hardwareBackButton: true,
   },
 
   // Capacitor plugins config

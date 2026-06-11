@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
       mustChangePassword: true,
       status: true,
       createdAt: true,
+      approvalStatus: true,
+      rejectionReason: true,
     },
   });
 

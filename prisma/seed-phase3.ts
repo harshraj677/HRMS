@@ -1,5 +1,5 @@
 /**
- * Phase 3 seed — creates one sample geofence and one default policy.
+ * Phase 3 seed — creates one default attendance policy.
  * Run with: npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed-phase3.ts
  *
  * Prerequisites:
@@ -20,27 +20,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Sample circle geofence — centred on the configured office location
-  const gf = await prisma.geofence.upsert({
-    where: { id: "000000000000000000000001" },
-    update: {},
-    create: {
-      id: "000000000000000000000001",
-      name: "Main Office",
-      type: "circle",
-      geometry: {
-        type: "circle",
-        lat: 13.962271577211828,
-        lng: 75.50897323054004,
-        radiusMeters: 300,
-      },
-      address: "Hubli, Karnataka, India",
-      active: true,
-      createdBy: admin.id,
-    },
-  });
-  console.log("✔ Geofence seeded:", gf.name);
-
   // Default soft policy — allows remote work, shows warning if outside
   const policy = await prisma.attendancePolicy.upsert({
     where: { id: "000000000000000000000002" },
@@ -49,7 +28,6 @@ async function main() {
       id: "000000000000000000000002",
       name: "Default Soft Policy",
       enforcementMode: "soft",
-      allowedGeofenceIds: [gf.id],
       allowedDistanceMeters: 50,
       remoteWorkAllowed: true,
       manualOverrideAllowed: true,

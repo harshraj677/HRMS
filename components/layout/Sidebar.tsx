@@ -31,6 +31,11 @@ import {
   Star,
   ServerIcon,
   TicketIcon,
+  ListChecks,
+  KanbanSquare,
+  CalendarRange,
+  Network,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,10 +55,20 @@ function getNavItems(role: string): NavGroup[] {
         ],
       },
       {
+        group: "Tasks",
+        items: [
+          { label: "My Tasks", href: "/dashboard/tasks", icon: ListChecks },
+          { label: "Board", href: "/dashboard/tasks/board", icon: KanbanSquare },
+          { label: "Calendar", href: "/dashboard/tasks/calendar", icon: CalendarRange },
+        ],
+      },
+      {
         group: "People",
         items: [
           { label: "Employees", href: "/dashboard/employees", icon: Users },
+          { label: "Onboarding", href: "/dashboard/onboarding", icon: UserCheck },
           { label: "Directory", href: "/dashboard/directory", icon: BookUser },
+          { label: "Org Structure", href: "/dashboard/org-structure", icon: Network },
           { label: "My Team", href: "/dashboard/my-team", icon: UsersRound },
           { label: "Departments", href: "/dashboard/departments", icon: Building2 },
         ],
@@ -65,7 +80,6 @@ function getNavItems(role: string): NavGroup[] {
           { label: "Leave Requests", href: "/dashboard/leave", icon: ClipboardList },
           { label: "Attendance Map", href: "/dashboard/attendance-map", icon: MapPin },
           { label: "Review Queue", href: "/dashboard/attendance-review", icon: Activity },
-          { label: "Geofences", href: "/dashboard/geofences", icon: MapPin },
           { label: "Policies", href: "/dashboard/policies", icon: ShieldCheck },
         ],
       },
@@ -119,6 +133,14 @@ function getNavItems(role: string): NavGroup[] {
       ],
     },
     {
+      group: "Tasks",
+      items: [
+        { label: "My Tasks", href: "/dashboard/tasks", icon: ListChecks },
+        { label: "Board", href: "/dashboard/tasks/board", icon: KanbanSquare },
+        { label: "Calendar", href: "/dashboard/tasks/calendar", icon: CalendarRange },
+      ],
+    },
+    {
       group: "My Work",
       items: [
         { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
@@ -131,6 +153,7 @@ function getNavItems(role: string): NavGroup[] {
       group: "Company",
       items: [
         { label: "Directory", href: "/dashboard/directory", icon: BookUser },
+        { label: "Org Structure", href: "/dashboard/org-structure", icon: Network },
         { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
         { label: "Events", href: "/dashboard/events", icon: Calendar },
         { label: "Helpdesk", href: "/dashboard/tickets", icon: TicketIcon },

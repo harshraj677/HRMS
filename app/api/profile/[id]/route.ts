@@ -50,10 +50,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // onboardingCompleted is employee-settable — it's a self-service flag set by the wizard
   const personalFields = [
     "dateOfBirth", "gender", "nationality", "maritalStatus",
+    "alternatePhone",
     "addressLine1", "addressLine2", "city", "state", "postalCode", "country",
     "emergencyName", "emergencyRelation", "emergencyPhone", "emergencyEmail",
     "highestEducation", "institution", "fieldOfStudy", "graduationYear",
     "skills", "certifications", "experience", "bio", "avatar",
+    "bankAccountHolder", "bankAccountNumber", "bankIFSC", "bankName",
     "onboardingCompleted",
   ];
   // Fields only admins can touch

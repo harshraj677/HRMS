@@ -47,6 +47,16 @@ export function getStatusColor(status: string) {
   return map[status] ?? "bg-slate-100 text-slate-700";
 }
 
+export function getRoleBadgeColor(role: string) {
+  const map: Record<string, string> = {
+    admin: "bg-violet-100 text-violet-700",
+    hr: "bg-indigo-100 text-indigo-700",
+    manager: "bg-sky-100 text-sky-700",
+    employee: "bg-slate-100 text-slate-600",
+  };
+  return map[role] ?? "bg-slate-100 text-slate-600";
+}
+
 export function getDepartmentColor(department: string) {
   const colors = [
     "bg-indigo-100 text-indigo-700",

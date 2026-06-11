@@ -59,6 +59,20 @@ export interface TeamMember {
   pendingLeaves: number;
 }
 
+export interface OrgTreeEmployee {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  department: string | null;
+  position: string | null;
+  role: string;
+  reportingManagerId: string | null;
+  managerName: string | null;
+  createdAt?: string;
+  profile: { avatar: string | null; workLocation: string | null } | null;
+}
+
 export interface AnnouncementData {
   id: string;
   title: string;
@@ -215,9 +229,24 @@ export function useAssignManager() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-team"] });
       qc.invalidateQueries({ queryKey: ["employees"] });
+      qc.invalidateQueries({ queryKey: ["org-tree"] });
       toast.success("Reporting manager updated.");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Org Structure Tree ───────────────────────────────────────────────────────
+
+export function useOrgTree() {
+  return useQuery<OrgTreeEmployee[]>({
+    queryKey: ["org-tree"],
+    queryFn: async () => {
+      const res = await fetch("/api/org/tree");
+      if (!res.ok) throw new Error("Failed to fetch org tree");
+      return (await res.json()).employees;
+    },
+    staleTime: 60 * 1000,
   });
 }
 

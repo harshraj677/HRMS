@@ -119,7 +119,7 @@ function AttendanceMapContent() {
   }, [markers, mapLoaded]);
 
   const totalCheckedIn = markers?.length ?? 0;
-  const outsideGeofence = markers?.filter((m) => m.distanceFromOffice > 1000).length ?? 0;
+  const outsideZone = markers?.filter((m) => m.distanceFromOffice > 1000).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -152,8 +152,8 @@ function AttendanceMapContent() {
               <MapPin className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{totalCheckedIn - outsideGeofence}</p>
-              <p className="text-xs text-slate-400">Within geofence</p>
+              <p className="text-2xl font-bold text-slate-900">{totalCheckedIn - outsideZone}</p>
+              <p className="text-xs text-slate-400">Within office zone</p>
             </div>
           </div>
         </motion.div>
@@ -163,8 +163,8 @@ function AttendanceMapContent() {
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{outsideGeofence}</p>
-              <p className="text-xs text-slate-400">Outside geofence</p>
+              <p className="text-2xl font-bold text-slate-900">{outsideZone}</p>
+              <p className="text-xs text-slate-400">Outside office zone</p>
             </div>
           </div>
         </motion.div>

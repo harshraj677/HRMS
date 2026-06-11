@@ -3,7 +3,9 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { sendEmployeeEmail } from "@/lib/email";
+import { sendOnboardingInviteEmail } from "@/lib/email";
+import { ROLES } from "@/lib/roles";
+import { derivePlaceholderName } from "@/lib/onboarding";
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req);
@@ -27,6 +29,7 @@ export async function GET(req: NextRequest) {
       status: true,
       createdAt: true,
       reportingManagerId: true,
+      approvalStatus: true,
     },
     orderBy: { createdAt: "asc" },
   });
@@ -43,8 +46,8 @@ export async function POST(req: NextRequest) {
   if (payload.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  if (!body?.fullName || !body?.email) {
-    return NextResponse.json({ error: "fullName and email are required." }, { status: 400 });
+  if (!body?.email) {
+    return NextResponse.json({ error: "email is required." }, { status: 400 });
   }
 
   const emailAddr = body.email.trim().toLowerCase();
@@ -62,19 +65,20 @@ export async function POST(req: NextRequest) {
   const passwordHash = await bcrypt.hash(randomPassword, 12);
 
   const role: string = body.role || "employee";
+  if (!ROLES.includes(role as (typeof ROLES)[number])) {
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+  }
 
   const employee = await prisma.employee.create({
     data: {
-      fullName: body.fullName.trim(),
+      fullName: derivePlaceholderName(emailAddr),
       email: emailAddr,
-      phone: body.phone?.trim() || null,
       department: body.department?.trim() || null,
-      position: body.position?.trim() || null,
       role,
       passwordHash,
-      leaveBalance: body.leaveBalance ?? 18,
       mustChangePassword: true,
       status: "active",
+      approvalStatus: "INVITED",
     },
   });
 
@@ -82,16 +86,22 @@ export async function POST(req: NextRequest) {
   // and shares it through a secure channel of their choice.
   let emailSent = false;
   if (role !== "admin") {
-    const emailResult = await sendEmployeeEmail(emailAddr, body.fullName.trim(), randomPassword);
+    const emailResult = await sendOnboardingInviteEmail(emailAddr, randomPassword, role);
     emailSent = emailResult.success;
+    if (!emailSent) {
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data: { approvalStatus: "PENDING_INVITATION" },
+      });
+    }
   }
 
   await prisma.notification.create({
     data: {
       recipientId: employee.id,
       title: `Welcome to ${process.env.APP_NAME || "AnveCore HRMS"}!`,
-      message: "Your account is ready. Check your email for login credentials.",
-      type: "welcome",
+      message: "Your account is ready. Check your email for login credentials to get started.",
+      type: "onboarding_invite",
       link: "/dashboard",
     },
   });

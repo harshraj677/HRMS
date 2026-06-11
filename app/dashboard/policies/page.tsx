@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ShieldCheck, ShieldAlert, ShieldX, CheckCircle2, XCircle, Loader2, Wifi, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, ShieldAlert, ShieldX, CheckCircle2, XCircle, Loader2, Wifi } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useGeofences, usePolicies } from "@/hooks/useAttendance";
+import { usePolicies } from "@/hooks/useAttendance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +65,7 @@ function PoliciesContent() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
           <ShieldCheck className="w-10 h-10 text-slate-200 mx-auto mb-3" />
           <p className="text-sm font-medium text-slate-500">No policies yet</p>
-          <p className="text-xs text-slate-400 mt-1">Create a policy and mark it as default to start enforcing geofence rules.</p>
+          <p className="text-xs text-slate-400 mt-1">Create a policy and mark it as default to start enforcing attendance rules.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -92,9 +92,6 @@ function PoliciesContent() {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {p.allowedGeofenceIds?.length ?? 0} geofence(s)
-                      </span>
                       {p.remoteWorkAllowed && (
                         <span className="text-xs text-emerald-600 flex items-center gap-1">
                           <Wifi className="w-3 h-3" /> Remote allowed
@@ -132,11 +129,9 @@ function PoliciesContent() {
 
 function PolicyForm({ initial, onClose, onSaved }: { initial: any | null; onClose: () => void; onSaved: () => void; }) {
   const isEdit = !!initial;
-  const { data: geofences } = useGeofences();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [mode, setMode] = useState<"soft" | "hard" | "allow-if-matched">(initial?.enforcementMode ?? "soft");
-  const [gfIds, setGfIds] = useState<string[]>(initial?.allowedGeofenceIds ?? []);
   const [distBuffer, setDistBuffer] = useState<string>(initial?.allowedDistanceMeters?.toString() ?? "");
   const [remote, setRemote] = useState<boolean>(initial?.remoteWorkAllowed ?? false);
   const [override, setOverride] = useState<boolean>(initial?.manualOverrideAllowed ?? true);
@@ -145,10 +140,6 @@ function PolicyForm({ initial, onClose, onSaved }: { initial: any | null; onClos
   const [locDays, setLocDays] = useState<string>(initial?.locationRetentionDays?.toString() ?? "");
   const [isDefault, setIsDefault] = useState<boolean>(initial?.isDefault ?? false);
   const [saving, setSaving] = useState(false);
-
-  const toggleGf = (id: string) => {
-    setGfIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error("Name is required."); return; }
@@ -161,7 +152,6 @@ function PolicyForm({ initial, onClose, onSaved }: { initial: any | null; onClos
         body: JSON.stringify({
           name: name.trim(),
           enforcementMode: mode,
-          allowedGeofenceIds: gfIds,
           allowedDistanceMeters: distBuffer ? parseInt(distBuffer) : null,
           remoteWorkAllowed: remote,
           manualOverrideAllowed: override,
@@ -221,26 +211,8 @@ function PolicyForm({ initial, onClose, onSaved }: { initial: any | null; onClos
         <p className="text-xs text-slate-400 mt-1">
           {mode === "soft" && "Attendance is recorded but a warning is shown and the record is flagged."}
           {mode === "hard" && "Attendance is blocked unless override is requested (if allowed)."}
-          {mode === "allow-if-matched" && "Attendance is recorded but flagged for review if outside any geofence."}
+          {mode === "allow-if-matched" && "Attendance is recorded but flagged for review if outside the office zone."}
         </p>
-      </div>
-
-      {/* Geofences */}
-      <div>
-        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">Allowed Geofences</label>
-        {!geofences?.length ? (
-          <p className="text-xs text-slate-400">No active geofences. Create one on the Geofences page first.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {geofences.filter((g: any) => g.active).map((g: any) => (
-              <button key={g.id} type="button" onClick={() => toggleGf(g.id)}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all",
-                  gfIds.includes(g.id) ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-slate-300")}>
-                {g.type === "circle" ? "◉" : "⬡"} {g.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Distance buffer */}
@@ -248,7 +220,7 @@ function PolicyForm({ initial, onClose, onSaved }: { initial: any | null; onClos
         <div>
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">Distance buffer (m)</label>
           <input type="number" min="0" className={inp} value={distBuffer} onChange={e => setDistBuffer(e.target.value)} placeholder="e.g. 50 (optional)" />
-          <p className="text-xs text-slate-400 mt-0.5">Allowed extra metres beyond geofence edge</p>
+          <p className="text-xs text-slate-400 mt-0.5">Allowed extra metres beyond the office zone radius</p>
         </div>
       </div>
 

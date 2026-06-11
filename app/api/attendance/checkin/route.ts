@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // CHECK 3 — Policy engine (Phase 3) or legacy single-circle geofence (fallback)
+  // CHECK 3 — Policy engine (Phase 3) or legacy single-circle office zone check (fallback)
   const policyEval = await evaluatePolicy({
     latitude,
     longitude,
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     overrideRequested,
   });
 
-  // Legacy geofence distance (always computed for distanceFromOffice column)
+  // Legacy office-zone distance (always computed for distanceFromOffice column)
   const legacyGeo = isWithinGeofence(
     latitude, longitude,
     officeSettings.latitude, officeSettings.longitude,
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     await prisma.suspiciousLog.create({
       data: {
         employeeId: payload.id,
-        type: "geofence_violation",
+        type: "office_zone_violation",
         description: `Attempted check-in from ${legacyGeo.distance}m away from office (limit: ${officeSettings.radiusMeters}m).`,
         ipAddress: getClientIP(req),
       },
@@ -227,8 +227,6 @@ export async function POST(req: NextRequest) {
       policyResult: {
         status: policyEval.status,
         distanceMeters: policyEval.distanceMeters,
-        geofenceId: policyEval.geofenceId,
-        geofenceName: policyEval.geofenceName,
         isRemote: policyEval.isRemote,
         policyName: policyEval.policyName,
         enforcementMode: policyEval.enforcementMode,
@@ -282,7 +280,6 @@ export async function POST(req: NextRequest) {
       policyResult: {
         status: policyEval.status,
         isRemote: policyEval.isRemote,
-        geofenceName: policyEval.geofenceName,
         message: policyEval.message,
       },
     },

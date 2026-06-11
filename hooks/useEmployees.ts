@@ -13,6 +13,7 @@ export interface EmployeeData {
   role: string;
   leaveBalance: number;
   createdAt: string;
+  approvalStatus?: string | null;
 }
 
 export function useEmployees(filters?: { department?: string; search?: string }) {
@@ -60,12 +61,9 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      fullName: string;
       email: string;
-      phone?: string;
-      department?: string;
-      position?: string;
       role?: string;
+      department?: string;
     }) => {
       const res = await fetch("/api/employees", {
         method: "POST",
@@ -79,11 +77,34 @@ export function useCreateEmployee() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       if (data.emailSent) {
-        toast.success(`Welcome email sent successfully to ${data.email}`);
+        toast.success(`Invitation email sent successfully to ${data.email}`);
       } else if (data.role !== "admin") {
         // Only show delivery failure error for employees
         toast.error("Email delivery failed — credentials shown for manual sharing.");
       }
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+}
+
+export function useUpdateEmployeeBasic(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { fullName?: string; phone?: string }) => {
+      const res = await fetch(`/api/employees/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update employee");
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["employees", id] });
     },
     onError: (err: Error) => {
       toast.error(err.message);

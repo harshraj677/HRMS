@@ -22,6 +22,12 @@ model Employee {
   deletedAt          DateTime?
   createdAt          DateTime        @default(now())
 
+  // Onboarding & approval workflow
+  approvalStatus     String?         // PENDING_INVITATION | INVITED | PROFILE_IN_PROGRESS | PROFILE_SUBMITTED | REJECTED | ACTIVE
+  approvalDate       DateTime?
+  approvedBy         String?         @db.ObjectId
+  rejectionReason    String?
+
   attendance         Attendance[]
   leaveRequests      LeaveRequest[]
   loginHistory       LoginHistory[]
@@ -32,6 +38,10 @@ model Employee {
   payrolls              Payroll[]
   reportingManagerId    String?    @db.ObjectId
   announcementsCreated  Announcement[]
+
+  @@index([reportingManagerId])
+  @@index([department])
+  @@index([role])
 }
 
 model Attendance {
@@ -243,6 +253,9 @@ model EmployeeProfile {
   postalCode          String?
   country             String?
   
+  // Alternate contact
+  alternatePhone      String?
+
   // Emergency Contact
   emergencyName       String?
   emergencyRelation   String?
@@ -271,6 +284,12 @@ model EmployeeProfile {
   workLocation        String?
   shiftTiming         String?
   employmentStatus    String?
+
+  // Bank Information
+  bankAccountHolder   String?
+  bankAccountNumber   String?
+  bankIFSC            String?
+  bankName            String?
 
   // Onboarding flag
   onboardingCompleted Boolean  @default(false)
@@ -511,30 +530,14 @@ model MentorReview {
   createdAt   DateTime  @default(now())
 }
 
-// ── Phase 3: Geofence & Policy Engine ──────────────────────────────────────
-
-model Geofence {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  // "circle" | "polygon"
-  type      String
-  // Circle: { type:"circle", lat, lng, radiusMeters }
-  // Polygon: { type:"polygon", coordinates:[{lat,lng},...] }
-  geometry  Json
-  address   String?
-  active    Boolean  @default(true)
-  createdBy String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// ── Phase 3: Attendance Policy Engine ──────────────────────────────────────
 
 model AttendancePolicy {
   id                    String   @id @default(auto()) @map("_id") @db.ObjectId
   name                  String
   // "soft" = warn+allow | "hard" = block | "allow-if-matched" = allow but flag if outside
   enforcementMode       String   @default("soft")
-  allowedGeofenceIds    String[] // ObjectId strings of Geofence documents
-  allowedDistanceMeters Int?     // extra buffer beyond geofence edge (optional)
+  allowedDistanceMeters Int?     // extra buffer beyond the office zone radius (optional)
   remoteWorkAllowed     Boolean  @default(false)
   manualOverrideAllowed Boolean  @default(true)
   faceVerifyRequired    Boolean  @default(false)
@@ -576,4 +579,132 @@ model DailySummary {
   avgLivenessScore     Float?
   policyViolationCount Int      @default(0)
   generatedAt          DateTime @default(now())
+}
+
+// ── Performance & Task Management Suite — Module 1: Tasks ─────────────────
+
+model Task {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  title              String
+  description        String?
+  priority           String    @default("medium") // low | medium | high | critical
+  status             String    @default("todo")   // todo | in_progress | under_review | completed | blocked | on_hold | cancelled
+  progress           Int       @default(0)        // 0 | 25 | 50 | 75 | 100
+  department         String?
+  dueDate            DateTime?
+  assignedById       String    @db.ObjectId
+  assignedToId       String    @db.ObjectId
+  attachments        Json[]    @default([])
+  tags               String[]  @default([])
+  startedAt          DateTime?
+  completedAt        DateTime?
+  overdueNotifiedAt  DateTime?
+  dueSoonNotifiedAt  DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  comments           TaskComment[]
+  progressLogs       TaskProgressLog[]
+
+  @@index([assignedToId])
+  @@index([assignedById])
+  @@index([status])
+  @@index([dueDate])
+  @@index([department])
+}
+
+model TaskComment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId      String   @db.ObjectId
+  authorId    String   @db.ObjectId
+  content     String
+  parentId    String?  @db.ObjectId
+  mentions    String[] @default([])
+  attachments Json[]   @default([])
+  createdAt   DateTime @default(now())
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskProgressLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId      String   @db.ObjectId
+  changedById String   @db.ObjectId
+  field       String   // "status" | "progress"
+  oldValue    String?
+  newValue    String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ── Performance & Task Management Suite — Module 2: Performance (schema only) ─
+
+model PerformanceRecord {
+  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId                String   @db.ObjectId
+  period                    String   // "2026-06" (monthly) | "2026-Q2" | "2026" (yearly)
+  periodType                String   @default("monthly") // monthly | quarterly | yearly
+  attendanceScore           Float    @default(0)
+  taskScore                 Float    @default(0)
+  leaveScore                Float    @default(0)
+  trainingScore             Float    @default(0)
+  managerFeedbackScore      Float    @default(0)
+  peerFeedbackScore         Float    @default(0)
+  overallScore              Float    @default(0)
+  attendancePercent         Float    @default(0)
+  tasksAssigned             Int      @default(0)
+  tasksCompleted            Int      @default(0)
+  tasksOverdue              Int      @default(0)
+  leavesTaken               Int      @default(0)
+  trainingCompletionPercent Float    @default(0)
+  generatedAt               DateTime @default(now())
+
+  @@unique([employeeId, period, periodType])
+  @@index([period])
+}
+
+model FeedbackEntry {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId   String   @db.ObjectId
+  reviewerId   String   @db.ObjectId
+  reviewerRole String   @default("peer") // manager | hr | peer | self
+  period       String
+  ratings      Json     // { communication, leadership, teamwork, accountability, problemSolving, technicalSkills } 1-5
+  comments     String?
+  createdAt    DateTime @default(now())
+
+  @@index([employeeId, period])
+}
+
+model TrainingRecord {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId   String    @db.ObjectId
+  title        String
+  status       String    @default("not_started") // not_started | in_progress | completed
+  progress     Int       @default(0)
+  assignedById String    @db.ObjectId
+  assignedAt   DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@index([employeeId])
+}
+
+model PerformanceRecommendation {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId     String    @db.ObjectId
+  period         String
+  type           String    // appraisal_review | promotion_review | high_performer | consistent_performer | needs_review | needs_attention
+  note           String?
+  generatedAt    DateTime  @default(now())
+  acknowledgedBy String?   @db.ObjectId
+  acknowledgedAt DateTime?
+
+  @@index([employeeId, period])
 }

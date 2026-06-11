@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn, getDepartmentColor, getInitials, formatDate } from "@/lib/utils";
 import { useMyTeam } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
+import { canManageOrgStructure } from "@/lib/roles";
 import { useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
 import { useLeaveRequests } from "@/hooks/useLeave";
 
@@ -31,7 +32,7 @@ export default function MyTeamPage() {
   const rejectLeave  = useRejectLeave();
   const [search, setSearch] = useState("");
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = canManageOrgStructure(user?.role ?? "");
 
   const filtered = (team ?? []).filter((m) =>
     !search ||

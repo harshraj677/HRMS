@@ -15,6 +15,8 @@ export interface AuthUser {
   mustChangePassword: boolean;
   status: string;
   createdAt: string;
+  approvalStatus?: string | null;
+  rejectionReason?: string | null;
 }
 
 export function useAuth() {

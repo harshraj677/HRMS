@@ -37,7 +37,6 @@ export async function POST(req: NextRequest) {
     data: {
       name: body.name.trim(),
       enforcementMode: body.enforcementMode ?? "soft",
-      allowedGeofenceIds: Array.isArray(body.allowedGeofenceIds) ? body.allowedGeofenceIds : [],
       allowedDistanceMeters: body.allowedDistanceMeters ? Number(body.allowedDistanceMeters) : null,
       remoteWorkAllowed: body.remoteWorkAllowed === true,
       manualOverrideAllowed: body.manualOverrideAllowed !== false,

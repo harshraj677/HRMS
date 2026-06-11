@@ -152,7 +152,7 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setPhase3Enabled(enabled);
-        toast.success(`Geofence policy engine ${enabled ? "enabled" : "disabled"}.`);
+        toast.success(`Attendance policy engine ${enabled ? "enabled" : "disabled"}.`);
       } else {
         toast.error("Failed to update setting.");
       }
@@ -470,7 +470,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">Office Settings</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Set the office WiFi name and register its public IP so only employees on the office network can check in. Also configure the GPS geofence as a fallback boundary.
+                    Set the office WiFi name and register its public IP so only employees on the office network can check in. Also configure the office GPS zone as a fallback boundary.
                   </p>
                 </div>
                 <Separator />
@@ -533,7 +533,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Geofence Radius (meters)</Label>
+                    <Label>Office Zone Radius (meters)</Label>
                     <Input
                       type="number"
                       min={50}
@@ -561,10 +561,10 @@ export default function SettingsPage() {
                   <div>
                     <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                      Geofence Policy Engine (Phase 3)
+                      Attendance Policy Engine (Phase 3)
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      When enabled, attendance is evaluated against your configured policies and geofences.
+                      When enabled, attendance is evaluated against your configured attendance policies.
                       When disabled, the simple single-circle check above applies.
                     </p>
                   </div>
@@ -585,7 +585,7 @@ export default function SettingsPage() {
                       )} />
                     </button>
                     <span className="text-sm font-medium text-slate-700">
-                      {phase3Enabled ? "Enabled — using policies & geofences" : "Disabled — using legacy single-circle check"}
+                      {phase3Enabled ? "Enabled — using attendance policies" : "Disabled — using legacy single-circle check"}
                     </span>
                     {phase3Saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />}
                   </div>
