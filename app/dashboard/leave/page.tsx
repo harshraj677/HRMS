@@ -1,30 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { motion } from "framer-motion";
 import {
-  Plus,
-  Calendar,
-  Loader2,
   FileText,
   Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -35,218 +18,101 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useLeaveRequests, useSubmitLeaveRequest, useApproveLeave, useRejectLeave } from "@/hooks/useLeave";
+import {
+  useLeaveRequests,
+  useApproveLeave,
+  useRejectLeave,
+} from "@/hooks/useLeave";
 import { useAuth } from "@/hooks/useAuth";
 import { cn, formatDate, getInitials } from "@/lib/utils";
+import { formatDaysLabel } from "@/lib/leaveCalculations";
+import { ApplyLeaveModal } from "@/components/leave/ApplyLeaveModal";
+import type { LeaveData } from "@/hooks/useLeave";
 
-const leaveSchema = z.object({
-  startDate: z.string().min(1, "Please select a start date"),
-  endDate:   z.string().min(1, "Please select an end date"),
-  category:  z.enum(["casual","sick","earned","unpaid"]).default("casual"),
-  reason:    z.string().min(10, "Reason must be at least 10 characters").max(300),
-});
-type LeaveFormData = z.infer<typeof leaveSchema>;
+// ─── Status chip ──────────────────────────────────────────────────────────────
 
-const LEAVE_CATEGORIES = [
-  { value: "casual",  label: "Casual Leave" },
-  { value: "sick",    label: "Sick Leave" },
-  { value: "earned",  label: "Earned Leave" },
-  { value: "unpaid",  label: "Unpaid Leave" },
-];
-
-const statusMeta: Record<string, { label: string; icon: typeof Clock; cls: string; dot: string }> = {
-  pending:  { label: "Pending",  icon: Clock,        cls: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-500"   },
-  approved: { label: "Approved", icon: CheckCircle,  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  rejected: { label: "Rejected", icon: XCircle,      cls: "bg-red-50 text-red-700 border-red-200",          dot: "bg-red-500"     },
+const statusMeta: Record<
+  string,
+  { label: string; icon: React.ElementType; cls: string; dot: string }
+> = {
+  pending:  { label: "Pending",  icon: Clock,       cls: "bg-amber-50 text-amber-700 border-amber-200",         dot: "bg-amber-500"   },
+  approved: { label: "Approved", icon: CheckCircle, cls: "bg-emerald-50 text-emerald-700 border-emerald-200",   dot: "bg-emerald-500" },
+  rejected: { label: "Rejected", icon: XCircle,     cls: "bg-red-50 text-red-700 border-red-200",               dot: "bg-red-500"     },
 };
 
 function StatusChip({ status }: { status: string }) {
-  const m = statusMeta[status] ?? { label: status, icon: AlertCircle, cls: "bg-slate-50 text-slate-600 border-slate-200", dot: "bg-slate-400" };
+  const m = statusMeta[status] ?? {
+    label: status,
+    icon:  AlertCircle,
+    cls:   "bg-slate-50 text-slate-600 border-slate-200",
+    dot:   "bg-slate-400",
+  };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border capitalize", m.cls)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border capitalize",
+        m.cls
+      )}
+    >
       <span className={cn("w-1.5 h-1.5 rounded-full", m.dot)} />
       {m.label}
     </span>
   );
 }
 
+// ─── Duration badge ───────────────────────────────────────────────────────────
+
+function DurationBadge({ leave }: { leave: LeaveData }) {
+  const days = leave.totalDays || leave.days;
+  const colorCls =
+    leave.durationType === "half_day"
+      ? "text-violet-600"
+      : leave.durationType === "custom_hours"
+      ? "text-cyan-600"
+      : "text-indigo-600";
+  return (
+    <span className={cn("text-xs font-semibold mt-0.5", colorCls)}>
+      {formatDaysLabel(days)}
+    </span>
+  );
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
 const TABS = ["all", "pending", "approved", "rejected"] as const;
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function LeavePage() {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const { data: user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { data: user }         = useAuth();
+  const isAdmin                = user?.role === "admin";
   const { data: leaveRequests, isLoading } = useLeaveRequests();
-  const submitLeave = useSubmitLeaveRequest();
   const approveLeave = useApproveLeave();
   const rejectLeave  = useRejectLeave();
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<LeaveFormData>({ resolver: zodResolver(leaveSchema) });
-
-  const startDate = watch("startDate");
-  const endDate   = watch("endDate");
-
-  const calculateDays = () => {
-    if (!startDate || !endDate) return 0;
-    const diff = Math.ceil(
-      (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
-    ) + 1;
-    return Math.max(0, diff);
-  };
-
-  const onSubmit = async (data: LeaveFormData) => {
-    await submitLeave.mutateAsync(data);
-    reset();
-    setDialogOpen(false);
-  };
 
   const tabCount = (tab: string) =>
     tab === "all"
       ? leaveRequests?.length ?? 0
-      : leaveRequests?.filter((l: any) => l.status === tab).length ?? 0;
+      : leaveRequests?.filter((l) => l.status === tab).length ?? 0;
 
   return (
     <div className="space-y-6">
-      {/* ── Page header ──────────────────────────────────────────── */}
+      {/* ── Page header ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Leave Requests</h2>
           <p className="text-sm text-slate-500 mt-0.5">
             {isAdmin
               ? "Manage and action team leave requests"
-              : "Apply for time off and track your requests (max 18 days/year)"}
+              : "Apply for time off and track your requests (max 18 days / year)"}
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.97] transition-all shadow-sm shadow-indigo-500/25 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Request Leave
-            </button>
-          </DialogTrigger>
-
-          {/* ── Leave application dialog ──────────────────────────── */}
-          <DialogContent className="sm:max-w-md rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-slate-900">Apply for Leave</DialogTitle>
-              <p className="text-sm text-slate-400 mt-1">Fill in the details for your leave request</p>
-            </DialogHeader>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
-              {/* Date range */}
-              <div className="grid grid-cols-2 gap-3">
-                {(["startDate", "endDate"] as const).map((field) => (
-                  <div key={field} className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      {field === "startDate" ? "Start Date" : "End Date"}
-                    </Label>
-                    <Input
-                      type="date"
-                      className={cn(
-                        "h-11 rounded-xl bg-slate-50 border-slate-200 text-sm",
-                        "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
-                        errors[field] && "border-red-400 bg-red-50/60"
-                      )}
-                      {...register(field)}
-                    />
-                    {errors[field] && (
-                      <p className="text-xs text-red-500">{errors[field]?.message}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Days preview */}
-              <AnimatePresence>
-                {calculateDays() > 0 && (
-                  <motion.div
-                    key="days-preview"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex items-center gap-3 p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                        <Calendar className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <span className="text-sm text-indigo-700">
-                        <strong>{calculateDays()} day{calculateDays() > 1 ? "s" : ""}</strong> of leave requested
-                      </span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Category */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Leave Category</Label>
-                <select
-                  aria-label="Leave category"
-                  className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  {...register("category")}
-                >
-                  {LEAVE_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Reason */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                  Reason
-                </Label>
-                <Textarea
-                  placeholder="Briefly describe the reason for your leave…"
-                  className={cn(
-                    "min-h-[90px] resize-none rounded-xl bg-slate-50 border-slate-200 text-sm",
-                    "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
-                    errors.reason && "border-red-400 bg-red-50/60"
-                  )}
-                  {...register("reason")}
-                />
-                {errors.reason && (
-                  <p className="text-xs text-red-500">{errors.reason.message}</p>
-                )}
-              </div>
-
-              <div className="flex gap-2.5 pt-1">
-                <button
-                  type="button"
-                  className="flex-1 h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
-                  onClick={() => { reset(); setDialogOpen(false); }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLeave.isPending}
-                  className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm shadow-indigo-500/20"
-                >
-                  {submitLeave.isPending ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
-                  ) : (
-                    "Submit Request"
-                  )}
-                </button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* The apply button + full modal live here */}
+        <ApplyLeaveModal />
       </div>
 
-      {/* ── Leave list with tabs ──────────────────────────────────── */}
+      {/* ── Leave list with tabs ──────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -262,7 +128,9 @@ export default function LeavePage() {
                   value={tab}
                   className="rounded-lg capitalize text-sm data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
-                  {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === "all"
+                    ? "All"
+                    : tab.charAt(0).toUpperCase() + tab.slice(1)}
                   {count > 0 && tab !== "all" && (
                     <span
                       className={cn(
@@ -281,9 +149,10 @@ export default function LeavePage() {
           </TabsList>
 
           {TABS.map((tab) => {
-            const filtered = leaveRequests?.filter(
-              (l: any) => tab === "all" || l.status === tab
-            ) ?? [];
+            const filtered =
+              leaveRequests?.filter(
+                (l) => tab === "all" || l.status === tab
+              ) ?? [];
 
             return (
               <TabsContent key={tab} value={tab} className="mt-3">
@@ -291,7 +160,10 @@ export default function LeavePage() {
                   {isLoading ? (
                     <div className="p-5 space-y-3">
                       {[...Array(4)].map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100">
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-slate-100"
+                        >
                           <div className="h-9 w-9 rounded-full bg-slate-100 animate-pulse shrink-0" />
                           <div className="flex-1 space-y-2">
                             <div className="h-3 bg-slate-100 rounded animate-pulse w-32" />
@@ -302,18 +174,22 @@ export default function LeavePage() {
                     </div>
                   ) : (
                     <>
-                      {/* ── Mobile card view ───────────────────────── */}
+                      {/* ── Mobile card view ──────────────────────── */}
                       <div className="md:hidden divide-y divide-slate-50">
                         {filtered.length === 0 ? (
                           <div className="flex flex-col items-center py-14 px-6 text-center">
                             <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-3">
                               <FileText className="w-7 h-7 text-slate-300" />
                             </div>
-                            <p className="text-sm font-medium text-slate-500">No {tab === "all" ? "" : tab} requests</p>
-                            <p className="text-xs text-slate-400 mt-1">Leave requests will appear here</p>
+                            <p className="text-sm font-medium text-slate-500">
+                              No {tab === "all" ? "" : tab} requests
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              Leave requests will appear here
+                            </p>
                           </div>
                         ) : (
-                          filtered.map((leave: any, i: number) => (
+                          filtered.map((leave, i) => (
                             <motion.div
                               key={leave.id}
                               initial={{ opacity: 0 }}
@@ -330,9 +206,13 @@ export default function LeavePage() {
                                       </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                      <p className="text-sm font-semibold text-slate-800">{leave.fullName}</p>
+                                      <p className="text-sm font-semibold text-slate-800">
+                                        {leave.fullName}
+                                      </p>
                                       {leave.department && (
-                                        <p className="text-xs text-slate-400">{leave.department}</p>
+                                        <p className="text-xs text-slate-400">
+                                          {leave.department}
+                                        </p>
                                       )}
                                     </div>
                                   </div>
@@ -340,11 +220,10 @@ export default function LeavePage() {
                                   <div>
                                     <p className="text-sm font-semibold text-slate-800">
                                       {formatDate(leave.startDate)}
-                                      {leave.startDate !== leave.endDate && ` → ${formatDate(leave.endDate)}`}
+                                      {leave.startDate !== leave.endDate &&
+                                        ` → ${formatDate(leave.endDate)}`}
                                     </p>
-                                    <p className="text-xs text-indigo-600 font-medium mt-0.5">
-                                      {leave.days} day{leave.days > 1 ? "s" : ""}
-                                    </p>
+                                    <DurationBadge leave={leave} />
                                   </div>
                                 )}
                                 <StatusChip status={leave.status} />
@@ -354,13 +233,16 @@ export default function LeavePage() {
                                 <div className="mb-2">
                                   <p className="text-sm font-medium text-slate-700">
                                     {formatDate(leave.startDate)}
-                                    {leave.startDate !== leave.endDate && ` → ${formatDate(leave.endDate)}`}
+                                    {leave.startDate !== leave.endDate &&
+                                      ` → ${formatDate(leave.endDate)}`}
                                   </p>
-                                  <p className="text-xs text-indigo-600 font-medium">{leave.days}d</p>
+                                  <DurationBadge leave={leave} />
                                 </div>
                               )}
 
-                              <p className="text-xs text-slate-400 line-clamp-2 mb-3">{leave.reason}</p>
+                              <p className="text-xs text-slate-400 line-clamp-2 mb-3">
+                                {leave.reason}
+                              </p>
 
                               {isAdmin && tab === "pending" && (
                                 <div className="flex gap-2">
@@ -387,7 +269,7 @@ export default function LeavePage() {
                         )}
                       </div>
 
-                      {/* ── Desktop table view ─────────────────────── */}
+                      {/* ── Desktop table view ────────────────────── */}
                       <div className="hidden md:block overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -417,7 +299,7 @@ export default function LeavePage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filtered.map((leave: any, i: number) => (
+                            {filtered.map((leave, i) => (
                               <motion.tr
                                 key={leave.id}
                                 initial={{ opacity: 0 }}
@@ -434,8 +316,12 @@ export default function LeavePage() {
                                         </AvatarFallback>
                                       </Avatar>
                                       <div>
-                                        <p className="text-sm font-semibold text-slate-800">{leave.fullName}</p>
-                                        <p className="text-xs text-slate-400">{leave.department ?? ""}</p>
+                                        <p className="text-sm font-semibold text-slate-800">
+                                          {leave.fullName}
+                                        </p>
+                                        <p className="text-xs text-slate-400">
+                                          {leave.department ?? ""}
+                                        </p>
                                       </div>
                                     </div>
                                   </TableCell>
@@ -445,11 +331,11 @@ export default function LeavePage() {
                                     {formatDate(leave.startDate)}
                                   </p>
                                   {leave.startDate !== leave.endDate && (
-                                    <p className="text-xs text-slate-400">to {formatDate(leave.endDate)}</p>
+                                    <p className="text-xs text-slate-400">
+                                      to {formatDate(leave.endDate)}
+                                    </p>
                                   )}
-                                  <p className="text-xs font-semibold text-indigo-600 mt-0.5">
-                                    {leave.days} day{leave.days > 1 ? "s" : ""}
-                                  </p>
+                                  <DurationBadge leave={leave} />
                                 </TableCell>
                                 <TableCell className="text-sm text-slate-500 hidden md:table-cell max-w-[200px] truncate">
                                   {leave.reason}
@@ -467,7 +353,9 @@ export default function LeavePage() {
                                         type="button"
                                         className="h-7 px-3 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
                                         disabled={approveLeave.isPending}
-                                        onClick={() => approveLeave.mutate(leave.id)}
+                                        onClick={() =>
+                                          approveLeave.mutate(leave.id)
+                                        }
                                       >
                                         Approve
                                       </button>
@@ -475,7 +363,9 @@ export default function LeavePage() {
                                         type="button"
                                         className="h-7 px-3 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 active:scale-95 transition-all disabled:opacity-50"
                                         disabled={rejectLeave.isPending}
-                                        onClick={() => rejectLeave.mutate(leave.id)}
+                                        onClick={() =>
+                                          rejectLeave.mutate(leave.id)
+                                        }
                                       >
                                         Reject
                                       </button>
@@ -487,12 +377,20 @@ export default function LeavePage() {
                             {filtered.length === 0 && (
                               <TableRow>
                                 <TableCell
-                                  colSpan={isAdmin ? (tab === "pending" ? 6 : 5) : 4}
+                                  colSpan={
+                                    isAdmin
+                                      ? tab === "pending"
+                                        ? 6
+                                        : 5
+                                      : 4
+                                  }
                                   className="text-center py-14"
                                 >
                                   <FileText className="w-10 h-10 text-slate-200 mx-auto mb-3" />
                                   <p className="text-sm text-slate-400">
-                                    No {tab === "all" ? "" : tab} leave requests found
+                                    No{" "}
+                                    {tab === "all" ? "" : tab} leave requests
+                                    found
                                   </p>
                                 </TableCell>
                               </TableRow>

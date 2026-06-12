@@ -2,21 +2,28 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { LeaveSubmitPayload } from "@/types/leave";
 
 export interface LeaveData {
-  id: string;
-  employeeId: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  reason: string;
-  category: string;
-  status: string;
+  id:             string;
+  employeeId:     string;
+  startDate:      string;
+  endDate:        string;
+  days:           number;
+  totalHours:     number;
+  totalDays:      number;
+  durationType:   string;
+  sessionType:    string | null;
+  startTime:      string | null;
+  endTime:        string | null;
+  reason:         string;
+  category:       string;
+  status:         string;
   managerComment: string | null;
-  createdAt: string;
-  fullName: string;
-  department: string | null;
-  leaveBalance: number;
+  createdAt:      string;
+  fullName:       string;
+  department:     string | null;
+  leaveBalance:   number;
 }
 
 export function useLeaveRequests() {
@@ -35,19 +42,17 @@ export function useSubmitLeaveRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: {
-      startDate: string;
-      endDate: string;
-      reason: string;
-      category?: string;
-    }) => {
+    mutationFn: async (data: LeaveSubmitPayload) => {
       const res = await fetch("/api/leave", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body:    JSON.stringify(data),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to submit leave request");
+      // Safely parse response — server may return HTML on unhandled errors
+      const text = await res.text();
+      let json: Record<string, unknown> = {};
+      try { json = JSON.parse(text); } catch { /* non-JSON body */ }
+      if (!res.ok) throw new Error((json.error as string) || `Server error (${res.status}). Please try again.`);
       return json;
     },
     onSuccess: () => {
@@ -67,9 +72,9 @@ export function useApproveLeave() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/leave/${id}`, {
-        method: "PUT",
+        method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve" }),
+        body:    JSON.stringify({ action: "approve" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to approve");
@@ -93,9 +98,9 @@ export function useRejectLeave() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/leave/${id}`, {
-        method: "PUT",
+        method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reject" }),
+        body:    JSON.stringify({ action: "reject" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to reject");
@@ -112,20 +117,25 @@ export function useRejectLeave() {
 }
 
 export interface LeaveDeleteParams {
-  id: string;
-  confirmName: string;
+  id:                  string;
+  confirmName:         string;
   archiveBeforeDelete: boolean;
-  permanentPurge: boolean;
+  permanentPurge:      boolean;
 }
 
 export function useDeleteLeaveRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, confirmName, archiveBeforeDelete, permanentPurge }: LeaveDeleteParams) => {
+    mutationFn: async ({
+      id,
+      confirmName,
+      archiveBeforeDelete,
+      permanentPurge,
+    }: LeaveDeleteParams) => {
       const res = await fetch(`/api/leave/${id}`, {
-        method: "DELETE",
+        method:  "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmName, archiveBeforeDelete, permanentPurge }),
+        body:    JSON.stringify({ confirmName, archiveBeforeDelete, permanentPurge }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to delete leave request");

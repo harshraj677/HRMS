@@ -101,9 +101,9 @@ export default function ActivityLogsPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-xs text-slate-400">{timeAgo(log.createdAt)}</p>
-                    {log.ipAddress && log.ipAddress !== "unknown" && (
-                      <p className="text-[10px] text-slate-300 font-mono">{log.ipAddress}</p>
-                    )}
+                    <p className="text-[10px] text-slate-300 font-mono">
+                      {log.ipAddress && log.ipAddress !== "unknown" ? log.ipAddress : "IP unavailable"}
+                    </p>
                   </div>
                 </motion.div>
               ))}

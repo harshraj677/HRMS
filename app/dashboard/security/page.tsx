@@ -94,7 +94,10 @@ export default function SecurityPage() {
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-400">
                     {entry.browser && <span className="flex items-center gap-0.5"><Monitor className="w-3 h-3" />{entry.browser}</span>}
-                    {entry.ipAddress && <span className="flex items-center gap-0.5"><Globe className="w-3 h-3" />{entry.ipAddress}</span>}
+                    <span className="flex items-center gap-0.5">
+                      <Globe className="w-3 h-3" />
+                      {entry.ipAddress || "IP unavailable"}
+                    </span>
                   </div>
                 </div>
                 <div className="shrink-0 text-right">

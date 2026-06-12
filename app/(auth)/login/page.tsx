@@ -68,7 +68,8 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
-      const json = await res.json();
+      const rawBody = await res.text();
+      const json = rawBody ? JSON.parse(rawBody) : null;
       if (!res.ok) {
         setLoginError(json.error ?? "Login failed. Please try again.");
         setIsLoading(false);
@@ -77,7 +78,7 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       console.error("[login] fetch error:", err);
-      setLoginError("Network error. Please check your connection.");
+      setLoginError("Could not reach the sign-in service. Please try again.");
       setIsLoading(false);
     }
   };

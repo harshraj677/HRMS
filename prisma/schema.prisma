@@ -16,7 +16,7 @@ model Employee {
   position           String?
   role               String          @default("employee")
   passwordHash       String
-  leaveBalance       Int             @default(18)
+  leaveBalance       Float           @default(18)
   mustChangePassword Boolean         @default(false)
   status             String          @default("active")
   deletedAt          DateTime?
@@ -90,20 +90,28 @@ model Attendance {
 }
 
 model LeaveRequest {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  employeeId String    @db.ObjectId
-  startDate  DateTime
-  endDate    DateTime
-  days       Int       @default(1)
-  reason          String
-  category        String    @default("casual")
-  status          String    @default("pending")
-  approvedBy      String?
-  managerComment  String?
-  deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId     String    @db.ObjectId
+  startDate      DateTime
+  endDate        DateTime
+  days           Float     @default(1)
+  reason         String
+  category       String    @default("casual")
+  status         String    @default("pending")
+  approvedBy     String?
+  managerComment String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
-  employee   Employee  @relation(fields: [employeeId], references: [id])
+  // Enhanced leave tracking (full_day | half_day | custom_hours)
+  durationType   String    @default("full_day")
+  sessionType    String?
+  startTime      String?
+  endTime        String?
+  totalHours     Float     @default(0)
+  totalDays      Float     @default(0)
+
+  employee       Employee  @relation(fields: [employeeId], references: [id])
 }
 
 model LoginHistory {

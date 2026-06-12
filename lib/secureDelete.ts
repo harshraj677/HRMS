@@ -26,9 +26,20 @@ export async function getAdminCaller(req: NextRequest): Promise<AdminCaller | nu
 
 /** Extract client IP from standard proxy headers. */
 export function getClientIp(req: NextRequest): string {
+  const forwardedHeader = req.headers.get("x-forwarded-for") ?? req.headers.get("x-vercel-forwarded-for");
+  const forwardedIp = forwardedHeader?.split(",")[0]?.trim();
+
+  if (forwardedIp) return forwardedIp;
+
+  const forwarded = req.headers.get("forwarded");
+  const forwardedMatch = forwarded?.match(/for=(?:"?\[?)([^;,\]"]+)(?:\]?"?)/i);
+
+  if (forwardedMatch?.[1]) return forwardedMatch[1].trim();
+
   return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
     req.headers.get("x-real-ip") ??
+    req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-client-ip") ??
     "unknown"
   );
 }

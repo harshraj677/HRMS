@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/db";
 import { signToken, buildAuthCookie } from "@/lib/auth";
-
-function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+import { getClientIp } from "@/lib/secureDelete";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const email = body.email.trim().toLowerCase();
     const password = body.password;
-    const ipAddress = getClientIP(req);
+    const ipAddress = getClientIp(req);
     const userAgent = req.headers.get("user-agent") || "unknown";
 
     if (!email || !password) {
