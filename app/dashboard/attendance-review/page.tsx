@@ -373,7 +373,7 @@ function ReviewQueueContent() {
             <p className="text-xs text-slate-400 mt-1">All caught up!</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
@@ -453,6 +453,74 @@ function ReviewQueueContent() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Mobile cards */}
+        {!isLoading && !!data?.queue.length && (
+          <div className="md:hidden divide-y divide-slate-50">
+            {data.queue.map((record) => {
+              const expanded = expandedId === record.id;
+              return (
+                <div key={record.id} className={cn("p-4", selectedIds.has(record.id) && "bg-indigo-50/40")}>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" checked={selectedIds.has(record.id)} onChange={() => toggleOne(record.id)}
+                      title={`Select ${record.fullName}`} aria-label={`Select ${record.fullName}`}
+                      className="w-3.5 h-3.5 mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{record.fullName}</p>
+                        <ReviewStatusBadge status={record.reviewStatus} />
+                      </div>
+                      <p className="text-xs text-slate-400">{record.department ?? ""}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                        <span className="whitespace-nowrap">{formatDate(record.date)}</span>
+                        <span className="font-mono whitespace-nowrap">
+                          {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">Face <ScoreChip value={record.faceScore} label="face" /></div>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">Liveness <ScoreChip value={record.livenessScore} label="liveness" /></div>
+                        {record.policyResult && (
+                          <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                            (record.policyResult as any).status === "ok" ? "bg-emerald-50 text-emerald-700"
+                              : (record.policyResult as any).status === "remote_ok" ? "bg-amber-50 text-amber-700"
+                              : "bg-red-50 text-red-700")}>
+                            {(record.policyResult as any).status ?? "–"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-3">
+                    <button type="button" onClick={() => setReviewingRecord(record)}
+                      className="flex-1 h-8 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors">
+                      Review
+                    </button>
+                    <button type="button" onClick={() => setExpandedId(expanded ? null : record.id)}
+                      className="h-8 px-3 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 transition-colors">
+                      {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  {expanded && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-3 text-xs">
+                      {record.checkInPhoto && (
+                        <img src={record.checkInPhoto} alt="Selfie" className="w-20 h-15 object-cover rounded-lg border border-slate-200" />
+                      )}
+                      <div className="space-y-1">
+                        {record.device && <p className="flex items-center gap-1 text-slate-500"><Smartphone className="w-3 h-3" /> {record.device.slice(0, 50)}</p>}
+                        {record.distanceFromOffice != null && <p className="flex items-center gap-1 text-slate-500"><MapPin className="w-3 h-3" /> {Math.round(record.distanceFromOffice)}m from office</p>}
+                        {record.overrideNote && <p className="flex items-start gap-1 text-amber-700"><AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" /> {record.overrideNote}</p>}
+                        {record.reviewNotes && <p className="text-slate-600 italic">&quot;{record.reviewNotes}&quot;</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

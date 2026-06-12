@@ -46,7 +46,7 @@ function ProgressBar({ status }: { status: string }) {
       <div className="grid grid-cols-5 gap-1 text-center">
         {STATUS_STEPS.map((step) => (
           <div key={step.key}>
-            <p className={cn("text-[9px] font-semibold", step.key === status ? "text-indigo-600" : "text-slate-400")}>{step.label}</p>
+            <p className={cn("text-[9px] font-semibold leading-tight px-0.5", step.key === status ? "text-indigo-600" : "text-slate-400")}>{step.label}</p>
           </div>
         ))}
       </div>

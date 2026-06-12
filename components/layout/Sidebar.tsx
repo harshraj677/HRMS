@@ -43,10 +43,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 
-type NavItem = { label: string; href: string; icon: React.ElementType };
-type NavGroup = { group: string; items: NavItem[] };
+export type NavItem = { label: string; href: string; icon: React.ElementType };
+export type NavGroup = { group: string; items: NavItem[] };
 
-function getNavItems(role: string): NavGroup[] {
+export function getNavItems(role: string): NavGroup[] {
   if (role === "admin") {
     return [
       {

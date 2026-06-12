@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Bell, ChevronDown, User, Settings, LogOut, HelpCircle, CheckCheck, Sun, Moon,
+  Bell, ChevronDown, User, Settings, LogOut, HelpCircle, CheckCheck, Sun, Moon, Menu,
 } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications, useMarkRead, useMarkAllRead } from "@/hooks/useNotifications";
+import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/dashboard":                  { title: "Dashboard",           description: "Overview & insights" },
@@ -75,6 +77,7 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useAuth();
+  const [navOpen, setNavOpen] = useState(false);
   const initials =
     user?.fullName
       ?.split(" ")
@@ -103,6 +106,18 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-20 h-16 bg-white border-b border-slate-200/80 flex items-center px-4 lg:px-6 gap-4 shrink-0">
+      {/* Hamburger menu (mobile/tablet) */}
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Open navigation menu"
+        onClick={() => setNavOpen(true)}
+        className="w-9 h-9 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 shrink-0 lg:hidden"
+      >
+        <Menu className="w-4 h-4" />
+      </Button>
+      <MobileNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
+
       {/* Mobile brand */}
       <div className="flex items-center gap-2 lg:hidden no-select">
         <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center overflow-hidden">

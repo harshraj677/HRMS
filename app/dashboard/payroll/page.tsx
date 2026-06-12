@@ -245,7 +245,8 @@ export default function PayrollPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <>
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
@@ -426,6 +427,168 @@ export default function PayrollPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((p, i) => {
+              const expanded = expandedId === p.id;
+              return (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4"
+                >
+                  <div
+                    className="flex items-start gap-3 cursor-pointer"
+                    onClick={() => setExpandedId(expanded ? null : p.id)}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {p.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{p.fullName}</p>
+                        <StatusBadge status={p.paymentStatus} />
+                      </div>
+                      <p className="text-xs text-slate-400 truncate">{p.position ?? "—"} · {p.department ?? "—"}</p>
+                    </div>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 shrink-0 mt-1 transition-transform", expanded && "rotate-180")} />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="bg-slate-50 rounded-xl p-2 text-center">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Gross</p>
+                      <p className="text-xs font-semibold text-slate-800">{fmtINR(p.grossSalary)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2 text-center">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Deductions</p>
+                      <p className="text-xs font-semibold text-red-600">−{fmtINR(p.totalDeductions)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2 text-center">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Net</p>
+                      <p className="text-xs font-bold text-emerald-700">{fmtINR(p.netSalary)}</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-2">Attendance: {p.presentDays}/{p.workingDays}d</p>
+
+                  {expanded && (
+                    <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-100">
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Earnings</p>
+                        <div className="space-y-1 text-xs">
+                          {[
+                            ["Basic Salary", p.basicSalary],
+                            ["HRA", p.hra],
+                            ["Special Allowance", p.specialAllowance],
+                            ["Bonus", p.bonus],
+                            ["Overtime Pay", p.overtimePay],
+                          ].map(([label, val]) => (
+                            <div key={String(label)} className="flex justify-between">
+                              <span className="text-slate-500">{label}</span>
+                              <span className="font-medium text-slate-700">{fmtINR(Number(val))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Deductions</p>
+                        <div className="space-y-1 text-xs">
+                          {[
+                            ["PF", p.pfDeduction],
+                            ["Tax", p.taxDeduction],
+                            ["Leave Deduction", p.leaveDeduction],
+                            ["Other", p.otherDeductions],
+                          ].map(([label, val]) => (
+                            <div key={String(label)} className="flex justify-between">
+                              <span className="text-slate-500">{label}</span>
+                              <span className="font-medium text-red-600">−{fmtINR(Number(val))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Attendance</p>
+                        <div className="space-y-1 text-xs">
+                          {[
+                            ["Working Days", p.workingDays],
+                            ["Present", p.presentDays],
+                            ["Paid Leave", p.paidLeaveDays],
+                            ["Unpaid Leave", p.unpaidLeaveDays],
+                            ["Absent", p.absentDays],
+                            ["Overtime hrs", p.overtimeHours],
+                          ].map(([label, val]) => (
+                            <div key={String(label)} className="flex justify-between">
+                              <span className="text-slate-500">{label}</span>
+                              <span className="font-medium text-slate-700">{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Summary</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Gross Salary</span>
+                            <span className="font-semibold text-slate-800">{fmtINR(p.grossSalary)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Total Deductions</span>
+                            <span className="font-semibold text-red-600">−{fmtINR(p.totalDeductions)}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-slate-200 pt-2">
+                            <span className="text-xs font-bold text-slate-700">Net Salary</span>
+                            <span className="text-sm font-bold text-emerald-700">{fmtINR(p.netSalary)}</span>
+                          </div>
+                          {p.paidAt && (
+                            <p className="text-[11px] text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Paid on {formatDate(p.paidAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                    {p.paymentStatus === "pending" ? (
+                      <button
+                        type="button"
+                        onClick={() => updatePayroll.mutate({ id: p.id, action: "mark_paid" })}
+                        disabled={updatePayroll.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-all"
+                      >
+                        {updatePayroll.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BadgeCheck className="w-3.5 h-3.5" />}
+                        Mark as Paid
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => updatePayroll.mutate({ id: p.id, action: "mark_pending" })}
+                        disabled={updatePayroll.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-semibold border border-amber-200 text-amber-700 bg-white hover:bg-amber-50 disabled:opacity-50 transition-all"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Revert to Pending
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      title="Delete payroll"
+                      onClick={() => deletePayroll.mutate(p.id)}
+                      disabled={deletePayroll.isPending}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 transition-all shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
     </RoleGuard>

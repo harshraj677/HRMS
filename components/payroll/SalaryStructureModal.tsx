@@ -97,14 +97,14 @@ export function SalaryStructureModal({ employeeId, employeeName, open, onClose }
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
           {/* Live preview */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {[
               { label: "Gross", value: gross,      color: "text-slate-800" },
               { label: "Deductions", value: deductions, color: "text-red-600" },
               { label: "Net / Month", value: net,  color: "text-emerald-700" },
             ].map(({ label, value, color }) => (
-              <div key={label} className="bg-slate-50 rounded-xl p-3 text-center">
-                <p className={cn("text-lg font-bold", color)}>{fmtINR(value)}</p>
+              <div key={label} className="bg-slate-50 rounded-xl p-2 sm:p-3 text-center">
+                <p className={cn("text-sm sm:text-lg font-bold truncate", color)}>{fmtINR(value)}</p>
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">{label}</p>
               </div>
             ))}
@@ -132,7 +132,7 @@ export function SalaryStructureModal({ employeeId, employeeName, open, onClose }
           {/* Deductions */}
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Deductions</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { label: "PF", key: "pfDeduction" as const },
                 { label: "Tax (TDS)", key: "taxDeduction" as const },
